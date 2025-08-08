@@ -49,6 +49,7 @@ public class GoogleAiGeminiStreamingChatModel extends BaseGeminiChatModel implem
                 builder.thinkingConfig,
                 builder.returnThinking,
                 builder.sendThinking,
+                builder.useNativeJsonSchema,
                 builder.defaultRequestParameters);
     }
 
@@ -107,6 +108,7 @@ public class GoogleAiGeminiStreamingChatModel extends BaseGeminiChatModel implem
         private GeminiThinkingConfig thinkingConfig;
         private Boolean returnThinking;
         private Boolean sendThinking;
+        private boolean useNativeJsonSchema;
 
         GoogleAiGeminiStreamingChatModelBuilder() {}
 
@@ -291,6 +293,11 @@ public class GoogleAiGeminiStreamingChatModel extends BaseGeminiChatModel implem
 
         public GoogleAiGeminiStreamingChatModelBuilder enableEnhancedCivicAnswers(Boolean enableEnhancedCivicAnswers) {
             this.enableEnhancedCivicAnswers = enableEnhancedCivicAnswers;
+            return this;
+        }
+
+        public GoogleAiGeminiStreamingChatModelBuilder useNativeJsonSchema(boolean useNativeJsonSchema) {
+            this.useNativeJsonSchema = useNativeJsonSchema;
             return this;
         }
 

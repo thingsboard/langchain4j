@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.util.List;
+import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
@@ -18,6 +19,9 @@ class GeminiGenerationConfig {
 
     @JsonProperty
     private final GeminiSchema responseSchema;
+
+    @JsonProperty
+    private final Map<String, Object> responseJsonSchema;
 
     @JsonProperty
     private final Integer candidateCount;
@@ -59,6 +63,7 @@ class GeminiGenerationConfig {
         this.stopSequences = builder.stopSequences;
         this.responseMimeType = builder.responseMimeType;
         this.responseSchema = builder.responseSchema;
+        this.responseJsonSchema = builder.responseJsonSchema;
         this.candidateCount = builder.candidateCount;
         this.maxOutputTokens = builder.maxOutputTokens;
         this.temperature = builder.temperature;
@@ -82,6 +87,7 @@ class GeminiGenerationConfig {
         private List<String> stopSequences;
         private String responseMimeType;
         private GeminiSchema responseSchema;
+        private Map<String, Object> responseJsonSchema;
         private Integer candidateCount;
         private Integer maxOutputTokens;
         private Double temperature;
@@ -109,6 +115,11 @@ class GeminiGenerationConfig {
 
         GeminiGenerationConfigBuilder responseSchema(GeminiSchema responseSchema) {
             this.responseSchema = responseSchema;
+            return this;
+        }
+
+        GeminiGenerationConfigBuilder responseJsonSchema(Map<String, Object> responseJsonSchema) {
+            this.responseJsonSchema = responseJsonSchema;
             return this;
         }
 

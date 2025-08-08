@@ -64,6 +64,7 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
                 builder.thinkingConfig,
                 builder.returnThinking,
                 builder.sendThinking,
+                builder.useNativeJsonSchema,
                 builder.defaultRequestParameters);
         this.supportedCapabilities = copy(builder.supportedCapabilities);
     }
@@ -173,6 +174,7 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
         private Boolean returnThinking;
         private Boolean sendThinking;
         private Integer logprobs;
+        private boolean useNativeJsonSchema;
         private List<ChatModelListener> listeners;
         private Set<Capability> supportedCapabilities;
 
@@ -355,6 +357,11 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
 
         public GoogleAiGeminiChatModelBuilder logprobs(Integer logprobs) {
             this.logprobs = logprobs;
+            return this;
+        }
+
+        public GoogleAiGeminiChatModelBuilder useNativeJsonSchema(boolean useNativeJsonSchema) {
+            this.useNativeJsonSchema = useNativeJsonSchema;
             return this;
         }
 
