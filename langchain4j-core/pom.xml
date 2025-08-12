@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.thingsboard</groupId>
         <artifactId>langchain4j-parent</artifactId>
-        <version>1.3.0-beta9-TB</version>
+        <version>1.3.0-beta9-TB-SNAPSHOT</version>
         <relativePath>../langchain4j-parent/pom.xml</relativePath>
     </parent>
 
     <artifactId>langchain4j-core</artifactId>
-    <version>1.3.0-TB</version>
+    <version>1.3.0-TB-SNAPSHOT</version>
     <name>LangChain4j :: Core</name>
     <description>Core classes and interfaces of LangChain4j</description>
 
