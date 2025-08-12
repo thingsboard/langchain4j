@@ -9,6 +9,8 @@ import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import dev.langchain4j.model.chat.request.DefaultChatRequestParameters;
+import dev.langchain4j.model.chat.request.ResponseFormat;
+import dev.langchain4j.model.chat.request.ResponseFormatType;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.openai.internal.OpenAiClient;
 import dev.langchain4j.model.openai.internal.ParsedAndRawResponse;
@@ -49,7 +51,7 @@ public class OpenAiChatModel implements ChatModel {
     private final Integer maxRetries;
 
     private final OpenAiChatRequestParameters defaultRequestParameters;
-    private final String responseFormat;
+    private final ResponseFormat responseFormat;
     private final Set<Capability> supportedCapabilities;
     private final boolean strictJsonSchema;
     private final boolean strictTools;
@@ -98,7 +100,7 @@ public class OpenAiChatModel implements ChatModel {
                 .stopSequences(getOrDefault(builder.stop, commonParameters.stopSequences()))
                 .toolSpecifications(commonParameters.toolSpecifications())
                 .toolChoice(commonParameters.toolChoice())
-                .responseFormat(getOrDefault(fromOpenAiResponseFormat(builder.responseFormat), commonParameters.responseFormat()))
+                .responseFormat(getOrDefault(builder.responseFormat, commonParameters.responseFormat()))
                 // OpenAI-specific parameters
                 .maxCompletionTokens(getOrDefault(builder.maxCompletionTokens, openAiParameters.maxCompletionTokens()))
                 .logitBias(getOrDefault(builder.logitBias, openAiParameters.logitBias()))
@@ -127,7 +129,7 @@ public class OpenAiChatModel implements ChatModel {
     @Override
     public Set<Capability> supportedCapabilities() {
         Set<Capability> capabilities = new HashSet<>(supportedCapabilities);
-        if ("json_schema".equals(responseFormat)) {
+        if (responseFormat.type() == ResponseFormatType.JSON && responseFormat.jsonSchema() != null) {
             capabilities.add(RESPONSE_FORMAT_JSON_SCHEMA);
         }
         return capabilities;
@@ -200,7 +202,7 @@ public class OpenAiChatModel implements ChatModel {
         private Double frequencyPenalty;
         private Map<String, Integer> logitBias;
         private Set<Capability> supportedCapabilities;
-        private String responseFormat;
+        private ResponseFormat responseFormat; // OVERRIDDEN FOR TB: String responseFormat
         private Boolean strictJsonSchema;
         private Integer seed;
         private String user;
@@ -307,8 +309,13 @@ public class OpenAiChatModel implements ChatModel {
             return this;
         }
 
-        public OpenAiChatModelBuilder responseFormat(String responseFormat) {
+        public OpenAiChatModelBuilder responseFormat(ResponseFormat responseFormat) {
             this.responseFormat = responseFormat;
+            return this;
+        }
+
+        public OpenAiChatModelBuilder responseFormat(String responseFormat) {
+            this.responseFormat = fromOpenAiResponseFormat(responseFormat);
             return this;
         }
 

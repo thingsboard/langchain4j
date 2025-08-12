@@ -1,0 +1,1 @@
+mvn deploy --projects "langchain4j-open-ai" -DskipTests -DskipITs -DskipAnthropicITs -DskipLocalAiITs -DskipMilvusITs -DskipMongoDbAtlasITs -DskipOllamaITs -DskipVearchITs -DskipVertexAiGeminiITs -Djacoco.skip=true
