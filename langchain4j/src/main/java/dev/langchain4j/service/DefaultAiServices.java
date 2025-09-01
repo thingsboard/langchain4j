@@ -75,7 +75,8 @@ class DefaultAiServices<T> extends AiServices<T> {
                     parameter.getAnnotation(dev.langchain4j.service.UserMessage.class);
             MemoryId memoryId = parameter.getAnnotation(MemoryId.class);
             UserName userName = parameter.getAnnotation(UserName.class);
-            if (v == null && userMessage == null && memoryId == null && userName == null) {
+            Format format = parameter.getAnnotation(Format.class);
+            if (v == null && userMessage == null && memoryId == null && userName == null && format == null) {
                 throw illegalConfiguration(
                         "Parameter '%s' of method '%s' should be annotated with @V or @UserMessage "
                                 + "or @UserName or @MemoryId",
@@ -201,12 +202,21 @@ class DefaultAiServices<T> extends AiServices<T> {
                         boolean supportsJsonSchema = supportsJsonSchema(); // TODO should it be called for
                         // returnType==String?
 
-                        Optional<JsonSchema> jsonSchema = Optional.empty();
-                        if (supportsJsonSchema && !streaming) {
-                            jsonSchema = serviceOutputParser.jsonSchema(returnType);
-                        }
-                        if ((!supportsJsonSchema || jsonSchema.isEmpty()) && !streaming) {
-                            userMessage = appendOutputFormatInstructions(returnType, userMessage);
+                        ResponseFormat responseFormat = findResponseFormatParam(method, args);
+                        if (responseFormat == null) {
+                            Optional<JsonSchema> jsonSchema = Optional.empty();
+                            if (supportsJsonSchema && !streaming) {
+                                jsonSchema = serviceOutputParser.jsonSchema(returnType);
+                            }
+                            if ((!supportsJsonSchema || jsonSchema.isEmpty()) && !streaming) {
+                                userMessage = appendOutputFormatInstructions(returnType, userMessage);
+                            }
+                            if (supportsJsonSchema && jsonSchema.isPresent()) {
+                                responseFormat = ResponseFormat.builder()
+                                        .type(JSON)
+                                        .jsonSchema(jsonSchema.get())
+                                        .build();
+                            }
                         }
 
                         List<ChatMessage> messages = new ArrayList<>();
@@ -245,14 +255,6 @@ class DefaultAiServices<T> extends AiServices<T> {
                             } else {
                                 return adapt(tokenStream, returnType);
                             }
-                        }
-
-                        ResponseFormat responseFormat = null;
-                        if (supportsJsonSchema && jsonSchema.isPresent()) {
-                            responseFormat = ResponseFormat.builder()
-                                    .type(JSON)
-                                    .jsonSchema(jsonSchema.get())
-                                    .build();
                         }
 
                         ChatRequestParameters parameters = ChatRequestParameters.builder()
@@ -413,6 +415,17 @@ class DefaultAiServices<T> extends AiServices<T> {
         }
 
         return context.systemMessageProvider.apply(memoryId);
+    }
+
+    private ResponseFormat findResponseFormatParam(Method method, Object[] args) {
+        for (int i = 0; i < method.getParameters().length; i++) {
+            Parameter parameter = method.getParameters()[i];
+            Format format = parameter.getAnnotation(Format.class);
+            if (format != null) {
+                return (ResponseFormat) args[i];
+            }
+        }
+        return null;
     }
 
     private static UserMessage prepareUserMessage(
