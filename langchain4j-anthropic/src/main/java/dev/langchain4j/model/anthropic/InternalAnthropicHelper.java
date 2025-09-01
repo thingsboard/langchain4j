@@ -1,14 +1,13 @@
 package dev.langchain4j.model.anthropic;
 
 import dev.langchain4j.Internal;
-import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.exception.UnsupportedFeatureException;
 import dev.langchain4j.model.anthropic.internal.api.AnthropicCacheType;
 import dev.langchain4j.model.anthropic.internal.api.AnthropicCreateMessageRequest;
-import dev.langchain4j.model.anthropic.internal.api.AnthropicTextContent;
 import dev.langchain4j.model.anthropic.internal.api.AnthropicThinking;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ChatRequestParameters;
+import dev.langchain4j.model.chat.request.ResponseFormatType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +25,7 @@ class InternalAnthropicHelper {
 
     static void validate(ChatRequestParameters parameters) {
         List<String> unsupportedFeatures = new ArrayList<>();
-        if (parameters.responseFormat() != null) {
+        if (parameters.responseFormat() != null && parameters.responseFormat().type() != ResponseFormatType.TEXT) {
             unsupportedFeatures.add("JSON response format");
         }
         if (parameters.frequencyPenalty() != null) {
