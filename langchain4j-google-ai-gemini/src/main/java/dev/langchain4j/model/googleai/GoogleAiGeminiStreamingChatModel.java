@@ -50,6 +50,7 @@ public class GoogleAiGeminiStreamingChatModel extends BaseGeminiChatModel implem
                 builder.returnThinking,
                 builder.sendThinking,
                 builder.useNativeJsonSchema,
+                null,
                 builder.defaultRequestParameters);
     }
 

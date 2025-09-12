@@ -8,6 +8,10 @@ import static dev.langchain4j.model.googleai.FunctionMapper.fromToolSepcsToGTool
 import static dev.langchain4j.model.googleai.PartsAndContentsMapper.fromMessageToGContent;
 import static dev.langchain4j.model.googleai.SchemaMapper.fromJsonSchemaToGSchema;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import dev.langchain4j.http.client.HttpClientBuilder;
 import dev.langchain4j.internal.JsonSchemaElementUtils;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
@@ -18,14 +22,11 @@ import dev.langchain4j.model.chat.request.ResponseFormat;
 import dev.langchain4j.model.chat.request.ResponseFormatType;
 import dev.langchain4j.model.chat.request.ToolChoice;
 import dev.langchain4j.model.chat.request.json.JsonEnumSchema;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 abstract class BaseGeminiChatModel {
 
     protected final GeminiService geminiService;
+    protected final GeminiCacheManager cacheManager;
     protected final GeminiFunctionCallingConfig functionCallingConfig;
     protected final boolean allowCodeExecution;
     protected final boolean includeCodeExecutionOutput;
@@ -40,6 +41,7 @@ abstract class BaseGeminiChatModel {
     protected final Boolean responseLogprobs;
     protected final Boolean enableEnhancedCivicAnswers;
     protected final boolean useNativeJsonSchema;
+    protected final CachingConfig cachingConfig;
 
     protected final ChatRequestParameters defaultRequestParameters;
 
@@ -72,10 +74,16 @@ abstract class BaseGeminiChatModel {
             Boolean returnThinking,
             Boolean sendThinking,
             boolean useNativeJsonSchema,
+            CachingConfig cachingConfig,
             ChatRequestParameters defaultRequestParameters) {
         ensureNotBlank(apiKey, "apiKey");
         this.geminiService = new GeminiService(
                 httpClientBuilder, apiKey, baseUrl, getOrDefault(logRequestsAndResponses, false), timeout);
+        if (cachingConfig != null && cachingConfig.isCacheSystemMessages()) {
+            this.cacheManager = new GeminiCacheManager(geminiService);
+        } else {
+            this.cacheManager = null;
+        }
 
         this.functionCallingConfig = functionCallingConfig;
         this.allowCodeExecution = getOrDefault(allowCodeExecution, false);
@@ -91,6 +99,7 @@ abstract class BaseGeminiChatModel {
         this.enableEnhancedCivicAnswers = getOrDefault(enableEnhancedCivicAnswers, false);
         this.logprobs = logprobs;
         this.useNativeJsonSchema = useNativeJsonSchema;
+        this.cachingConfig = cachingConfig;
 
         ChatRequestParameters parameters;
         if (defaultRequestParameters != null) {
@@ -119,6 +128,14 @@ abstract class BaseGeminiChatModel {
 
         GeminiContent systemInstruction = new GeminiContent(GeminiRole.MODEL.toString());
         List<GeminiContent> geminiContentList = fromMessageToGContent(chatRequest.messages(), systemInstruction, sendThinking);
+        String cachedContent = null;
+        if (systemInstruction.getParts().isEmpty()) {
+            systemInstruction = null;
+        } else if (cachingConfig != null && cachingConfig.isCacheSystemMessages()) {
+            cachedContent = cacheManager.getOrCreateCached(cachingConfig.getCacheKey(), cachingConfig.getTtl(),
+                    systemInstruction.getParts().get(0), chatRequest.modelName());
+            systemInstruction = null;
+        }
 
         ResponseFormat responseFormat = chatRequest.responseFormat();
         GeminiSchema schema = null;
@@ -134,7 +151,7 @@ abstract class BaseGeminiChatModel {
         return GeminiGenerateContentRequest.builder()
                 .model(chatRequest.modelName())
                 .contents(geminiContentList)
-                .systemInstruction(!systemInstruction.getParts().isEmpty() ? systemInstruction : null)
+                .systemInstruction(systemInstruction)
                 .generationConfig(GeminiGenerationConfig.builder()
                         .candidateCount(1) // Multiple candidates aren't supported by langchain4j
                         .maxOutputTokens(parameters.maxOutputTokens())
@@ -152,6 +169,7 @@ abstract class BaseGeminiChatModel {
                         .logprobs(logprobs)
                         .thinkingConfig(this.thinkingConfig)
                         .build())
+                .cachedContent(cachedContent)
                 .safetySettings(this.safetySettings)
                 .tools(fromToolSepcsToGTool(chatRequest.toolSpecifications(), this.allowCodeExecution))
                 .toolConfig(toToolConfig(parameters.toolChoice(), this.functionCallingConfig))

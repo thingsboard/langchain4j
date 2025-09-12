@@ -9,6 +9,13 @@ import static dev.langchain4j.model.googleai.PartsAndContentsMapper.fromGPartsTo
 import static dev.langchain4j.model.output.FinishReason.TOOL_EXECUTION;
 import static java.util.Arrays.asList;
 
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.http.client.HttpClientBuilder;
 import dev.langchain4j.model.ModelProvider;
@@ -23,13 +30,6 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.ChatResponseMetadata;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.TokenUsage;
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements ChatModel {
 
@@ -65,6 +65,7 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
                 builder.returnThinking,
                 builder.sendThinking,
                 builder.useNativeJsonSchema,
+                builder.cachingConfig,
                 builder.defaultRequestParameters);
         this.supportedCapabilities = copy(builder.supportedCapabilities);
     }
@@ -152,6 +153,7 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
         private String apiKey;
         private String baseUrl;
         private String modelName;
+        private CachingConfig cachingConfig;
         private Integer maxRetries;
         private Double temperature;
         private Integer topK;
@@ -215,6 +217,11 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
 
         public GoogleAiGeminiChatModelBuilder modelName(String modelName) {
             this.modelName = modelName;
+            return this;
+        }
+
+        public GoogleAiGeminiChatModelBuilder cachingConfig(CachingConfig cachingConfig) {
+            this.cachingConfig = cachingConfig;
             return this;
         }
 
