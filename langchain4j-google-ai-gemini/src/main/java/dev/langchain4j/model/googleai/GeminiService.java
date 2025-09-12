@@ -1,20 +1,5 @@
 package dev.langchain4j.model.googleai;
 
-import static dev.langchain4j.http.client.HttpMethod.GET;
-import static dev.langchain4j.http.client.HttpMethod.POST;
-import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.onCompleteResponse;
-import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.onCompleteToolCall;
-import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.onPartialResponse;
-import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.onPartialThinking;
-import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.withLoggingExceptions;
-import static dev.langchain4j.internal.Utils.firstNotNull;
-import static dev.langchain4j.internal.Utils.getOrDefault;
-import static dev.langchain4j.internal.ValidationUtils.ensureNotBlank;
-import static dev.langchain4j.model.googleai.Json.fromJson;
-import static java.time.Duration.ofSeconds;
-
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicInteger;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.http.client.HttpClient;
 import dev.langchain4j.http.client.HttpClientBuilder;
@@ -30,6 +15,23 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.CompleteToolCall;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import org.jspecify.annotations.Nullable;
+
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static dev.langchain4j.http.client.HttpMethod.DELETE;
+import static dev.langchain4j.http.client.HttpMethod.GET;
+import static dev.langchain4j.http.client.HttpMethod.POST;
+import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.onCompleteResponse;
+import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.onCompleteToolCall;
+import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.onPartialResponse;
+import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.onPartialThinking;
+import static dev.langchain4j.internal.InternalStreamingChatResponseHandlerUtils.withLoggingExceptions;
+import static dev.langchain4j.internal.Utils.firstNotNull;
+import static dev.langchain4j.internal.Utils.getOrDefault;
+import static dev.langchain4j.internal.ValidationUtils.ensureNotBlank;
+import static dev.langchain4j.model.googleai.Json.fromJson;
+import static java.time.Duration.ofSeconds;
 
 class GeminiService {
 
@@ -92,6 +94,12 @@ class GeminiService {
     GoogleAiListCachedContentsResponse listCachedContents(GoogleAiListCachedContentsRequest request) {
         String url = baseUrl + "/cachedContents?pageSize=" + request.getPageSize() + (request.getPageToken() != null ? "&pageToken=" + request.getPageToken() : "");
         return sendGetRequest(url, apiKey, GoogleAiListCachedContentsResponse.class);
+    }
+
+    void deleteCachedContent(String id) {
+        String url = baseUrl + "/cachedContents/" + id;
+        HttpRequest request = buildHttpRequest(DELETE, url, apiKey, null);
+        httpClient.execute(request);
     }
 
     void generateContentStream(
