@@ -41,7 +41,7 @@ abstract class BaseGeminiChatModel {
     protected final Boolean responseLogprobs;
     protected final Boolean enableEnhancedCivicAnswers;
     protected final boolean useNativeJsonSchema;
-    protected final CachingConfig cachingConfig;
+    protected final GeminiCachingConfig cachingConfig;
 
     protected final ChatRequestParameters defaultRequestParameters;
 
@@ -74,13 +74,17 @@ abstract class BaseGeminiChatModel {
             Boolean returnThinking,
             Boolean sendThinking,
             boolean useNativeJsonSchema,
-            CachingConfig cachingConfig,
+            GeminiCachingConfig cachingConfig,
             ChatRequestParameters defaultRequestParameters) {
         ensureNotBlank(apiKey, "apiKey");
         this.geminiService = new GeminiService(
                 httpClientBuilder, apiKey, baseUrl, getOrDefault(logRequestsAndResponses, false), timeout);
         if (cachingConfig != null && cachingConfig.isCacheSystemMessages()) {
-            this.cacheManager = new GeminiCacheManager(geminiService);
+            if (cachingConfig.getCacheManagerProvider() != null) {
+                this.cacheManager = cachingConfig.getCacheManagerProvider().apply(geminiService);
+            } else {
+                this.cacheManager = new GeminiCacheManager(geminiService);
+            }
         } else {
             this.cacheManager = null;
         }
@@ -132,8 +136,7 @@ abstract class BaseGeminiChatModel {
         if (systemInstruction.getParts().isEmpty()) {
             systemInstruction = null;
         } else if (cachingConfig != null && cachingConfig.isCacheSystemMessages()) {
-            cachedContent = cacheManager.getOrCreateCached(cachingConfig.getCacheKey(), cachingConfig.getTtl(),
-                    systemInstruction.getParts().get(0), chatRequest.modelName());
+            cachedContent = cacheManager.getOrCreateCached(cachingConfig.getCacheKey(), cachingConfig.getTtl(), systemInstruction, chatRequest.modelName());
             systemInstruction = null;
         }
 

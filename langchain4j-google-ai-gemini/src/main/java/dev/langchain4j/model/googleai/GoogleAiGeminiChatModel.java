@@ -153,7 +153,7 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
         private String apiKey;
         private String baseUrl;
         private String modelName;
-        private CachingConfig cachingConfig;
+        private GeminiCachingConfig cachingConfig;
         private Integer maxRetries;
         private Double temperature;
         private Integer topK;
@@ -220,7 +220,7 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
             return this;
         }
 
-        public GoogleAiGeminiChatModelBuilder cachingConfig(CachingConfig cachingConfig) {
+        public GoogleAiGeminiChatModelBuilder cachingConfig(GeminiCachingConfig cachingConfig) {
             this.cachingConfig = cachingConfig;
             return this;
         }
