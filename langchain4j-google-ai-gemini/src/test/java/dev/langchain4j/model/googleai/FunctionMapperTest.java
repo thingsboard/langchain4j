@@ -2,6 +2,10 @@ package dev.langchain4j.model.googleai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Map;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.ToolSpecification;
@@ -10,9 +14,6 @@ import dev.langchain4j.model.chat.request.json.JsonArraySchema;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonStringSchema;
 import dev.langchain4j.model.output.structured.Description;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class FunctionMapperTest {
@@ -51,10 +52,9 @@ class FunctionMapperTest {
     }
 
     @Test
-    void should_convert_nested_structures() {
+    void should_convert_nested_structures() throws JsonProcessingException {
         // when
         List<ToolSpecification> toolSpecifications = ToolSpecifications.toolSpecificationsFrom(IssTool.class);
-        System.out.println("\ntoolSpecifications = " + toolSpecifications);
 
         // then
         assertThat(toolSpecifications).hasSize(1);
@@ -64,33 +64,58 @@ class FunctionMapperTest {
 
         // when
         GeminiTool geminiTool = FunctionMapper.fromToolSepcsToGTool(toolSpecifications, false);
-        System.out.println("\ngeminiTool = " + withoutNullValues(geminiTool.toString()));
 
         // then
-        List<GeminiFunctionDeclaration> allGFnDecl = geminiTool.getFunctionDeclarations();
-        assertThat(allGFnDecl).hasSize(1);
+        List<GeminiFunctionDeclaration> allFunctions = geminiTool.getFunctionDeclarations();
+        assertThat(allFunctions).hasSize(1);
 
-        GeminiFunctionDeclaration gFnDecl = allGFnDecl.get(0);
-        assertThat(gFnDecl.getName()).isEqualTo("distanceBetween");
+        GeminiFunctionDeclaration function = allFunctions.get(0);
+        assertThat(function.getName()).isEqualTo("distanceBetween");
+        assertThat(function.getDescription()).isEqualTo("Get the distance between the user and the ISS.");
 
-        assertThat(gFnDecl.getParameters().getType()).isEqualTo(GeminiType.OBJECT);
-        Map<String, GeminiSchema> props = gFnDecl.getParameters().getProperties();
+        Map<String, Object> params = function.getParametersJsonSchema();
+        assertThat(params).isNotNull();
 
-        assertThat(props).hasSize(2);
-        assertThat(props.keySet()).containsAll(Arrays.asList("userCoordinates", "issCoordinates"));
+        JsonNode expectedParamsJson = Json.OBJECT_MAPPER.readTree("""
+                {
+                  "type": "object",
+                  "properties": {
+                    "userCoordinates": {
+                      "type": "object",
+                      "description": "user coordinates",
+                      "properties": {
+                        "latitude": { "type": "number", "description": "latitude" },
+                        "longitude": { "type": "number", "description": "latitude" },
+                        "projection": {
+                          "type": "string",
+                          "description": "Geographic projection system used",
+                          "enum": ["WGS84", "NAD83", "PZ90", "GCJ02", "BD09"]
+                        }
+                      },
+                      "required": ["latitude", "longitude", "projection"]
+                    },
+                    "issCoordinates": {
+                      "type": "object",
+                      "description": "ISS coordinates",
+                      "properties": {
+                        "latitude": { "type": "number", "description": "latitude" },
+                        "longitude": { "type": "number", "description": "latitude" },
+                        "projection": {
+                          "type": "string",
+                          "description": "Geographic projection system used",
+                          "enum": ["WGS84", "NAD83", "PZ90", "GCJ02", "BD09"]
+                        }
+                      },
+                      "required": ["latitude", "longitude", "projection"]
+                    }
+                  },
+                  "required": ["userCoordinates", "issCoordinates"],
+                  "additionalProperties": false
+                }
+                """);
+        JsonNode actualParamsJson = Json.OBJECT_MAPPER.valueToTree(params);
 
-        GeminiSchema userCoord = props.get("userCoordinates");
-        assertThat(userCoord.getType()).isEqualTo(GeminiType.OBJECT);
-
-        GeminiSchema issCoord = props.get("issCoordinates");
-        assertThat(issCoord.getType()).isEqualTo(GeminiType.OBJECT);
-
-        assertThat(userCoord.getProperties()).hasSize(3);
-        assertThat(issCoord.getProperties()).hasSize(3);
-
-        assertThat(userCoord.getProperties().keySet())
-                .containsAll(Arrays.asList("latitude", "longitude", "projection"));
-        assertThat(issCoord.getProperties().keySet()).containsAll(Arrays.asList("latitude", "longitude", "projection"));
+        assertThat(actualParamsJson).isEqualTo(expectedParamsJson);
     }
 
     static class Address {
@@ -110,15 +135,11 @@ class FunctionMapperTest {
         private final String lastname;
 
         private final Address shippingAddress;
-        //        private final Address billingAddress;
 
-        public Customer(String firstname, String lastname, Address shippingAddress
-                //                        Address billingAddress
-                ) {
+        public Customer(String firstname, String lastname, Address shippingAddress) {
             this.firstname = firstname;
             this.lastname = lastname;
             this.shippingAddress = shippingAddress;
-            //            this.billingAddress = billingAddress;
         }
     }
 
@@ -164,63 +185,84 @@ class FunctionMapperTest {
     }
 
     @Test
-    void complexNestedGraph() {
+    void complexNestedGraph() throws JsonProcessingException {
         // given
         List<ToolSpecification> toolSpecifications = ToolSpecifications.toolSpecificationsFrom(OrderSystem.class);
-        System.out.println("\ntoolSpecifications = " + toolSpecifications);
 
         // when
         GeminiTool geminiTool = FunctionMapper.fromToolSepcsToGTool(toolSpecifications, false);
-        System.out.println("\ngeminiTool = " + withoutNullValues(geminiTool.toString()));
 
         // then
-        List<GeminiFunctionDeclaration> allGFnDecl = geminiTool.getFunctionDeclarations();
-        assertThat(allGFnDecl).hasSize(1);
+        List<GeminiFunctionDeclaration> allFunctions = geminiTool.getFunctionDeclarations();
+        assertThat(allFunctions).hasSize(1);
 
-        GeminiFunctionDeclaration gFnDecl = allGFnDecl.get(0);
-        assertThat(gFnDecl.getName()).isEqualTo("makeOrder");
-        assertThat(gFnDecl.getParameters().getType()).isEqualTo(GeminiType.OBJECT);
+        GeminiFunctionDeclaration function = allFunctions.get(0);
+        assertThat(function.getName()).isEqualTo("makeOrder");
+        assertThat(function.getDescription()).isEqualTo("Make an order");
 
-        Map<String, GeminiSchema> props = gFnDecl.getParameters().getProperties();
-        assertThat(props).hasSize(1);
-        assertThat(props.keySet()).containsExactly("order");
+        Map<String, Object> params = function.getParametersJsonSchema();
+        assertThat(params).isNotNull();
 
-        GeminiSchema orderSchema = props.get("order");
-        assertThat(orderSchema.getType()).isEqualTo(GeminiType.OBJECT);
-        assertThat(orderSchema.getProperties()).hasSize(3);
-        assertThat(orderSchema.getProperties().keySet())
-                .containsAll(Arrays.asList("totalAmount", "lineItems", "customer"));
+        JsonNode expectedParamsJson = Json.OBJECT_MAPPER.readTree("""
+                {
+                  "type": "object",
+                  "properties": {
+                    "order": {
+                      "type": "object",
+                      "description": "The order to make",
+                      "properties": {
+                        "totalAmount": { "type": "number" },
+                        "lineItems": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "product": {
+                                "type": "object",
+                                "properties": {
+                                  "name": { "type": "string" },
+                                  "description": { "type": "string" },
+                                  "price": { "type": "number" }
+                                },
+                                "required": ["name", "description", "price"]
+                              },
+                              "quantity": { "type": "integer" }
+                            },
+                            "required": ["product", "quantity"]
+                          }
+                        },
+                        "customer": {
+                          "type": "object",
+                          "properties": {
+                            "firstname": { "type": "string" },
+                            "lastname": { "type": "string" },
+                            "shippingAddress": {
+                              "type": "object",
+                              "properties": {
+                                "street": { "type": "string" },
+                                "zipCode": { "type": "string" },
+                                "city": { "type": "string" }
+                              },
+                              "required": ["street", "zipCode", "city"]
+                            }
+                          },
+                          "required": ["firstname", "lastname", "shippingAddress"]
+                        }
+                      },
+                      "required": ["totalAmount", "lineItems", "customer"]
+                    }
+                  },
+                  "required": ["order"],
+                  "additionalProperties": false
+                }
+                """);
+        JsonNode actualParamsJson = Json.OBJECT_MAPPER.valueToTree(params);
 
-        GeminiSchema totalAmount = orderSchema.getProperties().get("totalAmount");
-        assertThat(totalAmount.getType()).isEqualTo(GeminiType.NUMBER);
-
-        GeminiSchema lineItems = orderSchema.getProperties().get("lineItems");
-        assertThat(lineItems.getType()).isEqualTo(GeminiType.ARRAY);
-
-        GeminiSchema lineItemsItems = lineItems.getItems();
-        assertThat(lineItemsItems.getType()).isEqualTo(GeminiType.OBJECT);
-        assertThat(lineItemsItems.getProperties()).hasSize(2);
-        assertThat(lineItemsItems.getProperties().keySet()).containsAll(Arrays.asList("product", "quantity"));
-
-        GeminiSchema product = lineItemsItems.getProperties().get("product");
-        assertThat(product.getType()).isEqualTo(GeminiType.OBJECT);
-        assertThat(product.getProperties()).hasSize(3);
-        assertThat(product.getProperties().keySet()).containsAll(Arrays.asList("name", "description", "price"));
-
-        GeminiSchema customer = orderSchema.getProperties().get("customer");
-        assertThat(customer.getType()).isEqualTo(GeminiType.OBJECT);
-        assertThat(customer.getProperties()).hasSize(3);
-        assertThat(customer.getProperties().keySet())
-                .containsAll(Arrays.asList("firstname", "lastname", "shippingAddress"));
-
-        GeminiSchema shippingAddress = customer.getProperties().get("shippingAddress");
-        assertThat(shippingAddress.getType()).isEqualTo(GeminiType.OBJECT);
-        assertThat(shippingAddress.getProperties()).hasSize(3);
-        assertThat(shippingAddress.getProperties().keySet()).containsAll(Arrays.asList("street", "zipCode", "city"));
+        assertThat(actualParamsJson).isEqualTo(expectedParamsJson);
     }
 
     @Test
-    void array() {
+    void array() throws JsonProcessingException {
         // given
         ToolSpecification spec = ToolSpecification.builder()
                 .name("toolName")
@@ -234,34 +276,36 @@ class FunctionMapperTest {
                         .build())
                 .build();
 
-        System.out.println("\nspec = " + spec);
-
         // when
-        GeminiTool geminiTool = FunctionMapper.fromToolSepcsToGTool(Arrays.asList(spec), false);
-        System.out.println("\ngeminiTool = " + withoutNullValues(geminiTool.toString()));
+        GeminiTool geminiTool = FunctionMapper.fromToolSepcsToGTool(List.of(spec), false);
 
         // then
-        List<GeminiFunctionDeclaration> allGFnDecl = geminiTool.getFunctionDeclarations();
-        assertThat(allGFnDecl).hasSize(1);
-        GeminiFunctionDeclaration gFnDecl = allGFnDecl.get(0);
-        assertThat(gFnDecl.getName()).isEqualTo("toolName");
-        assertThat(gFnDecl.getParameters().getType()).isEqualTo(GeminiType.OBJECT);
+        List<GeminiFunctionDeclaration> allFunctions = geminiTool.getFunctionDeclarations();
+        assertThat(allFunctions).hasSize(1);
 
-        Map<String, GeminiSchema> props = gFnDecl.getParameters().getProperties();
-        System.out.println("props = " + withoutNullValues(props.toString()));
-        assertThat(props).hasSize(1);
-        assertThat(props.keySet()).containsExactly("arrayParameter");
+        GeminiFunctionDeclaration function = allFunctions.get(0);
+        assertThat(function.getName()).isEqualTo("toolName");
+        assertThat(function.getDescription()).isEqualTo("tool description");
 
-        GeminiSchema arrayParameter = props.get("arrayParameter");
-        assertThat(arrayParameter.getType()).isEqualTo(GeminiType.ARRAY);
-        assertThat(arrayParameter.getDescription()).isEqualTo("an array");
-        assertThat(arrayParameter.getItems().getType()).isEqualTo(GeminiType.STRING);
-        assertThat(arrayParameter.getItems().getItems()).isNull();
-        assertThat(arrayParameter.getItems().getProperties()).isNull();
+        Map<String, Object> params = function.getParametersJsonSchema();
+        assertThat(params).isNotNull();
+        JsonNode expectedParamsJson = Json.OBJECT_MAPPER.readTree("""
+                {
+                  "type": "object",
+                  "properties": {
+                    "arrayParameter": {
+                      "type": "array",
+                      "description": "an array",
+                      "items": { "type": "string" }
+                    }
+                  },
+                  "required": ["arrayParameter"],
+                  "additionalProperties": false
+                }
+                """);
+        JsonNode actualParamsJson = Json.OBJECT_MAPPER.valueToTree(params);
+
+        assertThat(actualParamsJson).isEqualTo(expectedParamsJson);
     }
 
-    private static String withoutNullValues(String toString) {
-        return toString.replaceAll("(, )?(?<=(, |\\())[^\\s(]+?=null(?:, )?", " ")
-                .replaceFirst(", \\)$", ")");
-    }
 }

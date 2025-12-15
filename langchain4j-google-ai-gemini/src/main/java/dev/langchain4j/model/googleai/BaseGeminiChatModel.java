@@ -6,7 +6,6 @@ import static dev.langchain4j.internal.Utils.getOrDefault;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotBlank;
 import static dev.langchain4j.model.googleai.FunctionMapper.fromToolSepcsToGTool;
 import static dev.langchain4j.model.googleai.PartsAndContentsMapper.fromMessageToGContent;
-import static dev.langchain4j.model.googleai.SchemaMapper.fromJsonSchemaToGSchema;
 
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.http.client.HttpClientBuilder;
@@ -41,7 +40,6 @@ class BaseGeminiChatModel {
     protected final Integer logprobs;
     protected final Boolean responseLogprobs;
     protected final Boolean enableEnhancedCivicAnswers;
-    protected final boolean useNativeJsonSchema;
     protected final GeminiCachingConfig cachingConfig;
 
     protected final ChatRequestParameters defaultRequestParameters;
@@ -62,7 +60,6 @@ class BaseGeminiChatModel {
         this.responseLogprobs = getOrDefault(builder.responseLogprobs, false);
         this.enableEnhancedCivicAnswers = getOrDefault(builder.enableEnhancedCivicAnswers, false);
         this.logprobs = builder.logprobs;
-        this.useNativeJsonSchema = builder.useNativeJsonSchema;
         this.cachingConfig = builder.cachingConfig;
 
         if (cachingConfig != null && cachingConfig.isCacheSystemMessages()) {
@@ -124,14 +121,9 @@ class BaseGeminiChatModel {
         }
 
         ResponseFormat responseFormat = chatRequest.responseFormat();
-        GeminiSchema schema = null;
         Map<String, Object> responseJsonSchema = null;
         if (responseFormat != null && responseFormat.jsonSchema() != null) {
-            if (useNativeJsonSchema) {
-                responseJsonSchema = JsonSchemaElementUtils.toMap(responseFormat.jsonSchema().rootElement());
-            } else {
-                schema = fromJsonSchemaToGSchema(responseFormat.jsonSchema());
-            }
+            responseJsonSchema = JsonSchemaElementUtils.toMap(responseFormat.jsonSchema().rootElement());
         }
 
         return GeminiGenerateContentRequest.builder()
@@ -141,7 +133,6 @@ class BaseGeminiChatModel {
                         .candidateCount(1) // Multiple candidates aren't supported by langchain4j
                         .maxOutputTokens(parameters.maxOutputTokens())
                         .responseMimeType(computeMimeType(responseFormat))
-                        .responseSchema(schema)
                         .responseJsonSchema(responseJsonSchema)
                         .stopSequences(parameters.stopSequences())
                         .temperature(parameters.temperature())
@@ -249,7 +240,6 @@ class BaseGeminiChatModel {
         protected Boolean returnThinking;
         protected Boolean sendThinking;
         protected Integer logprobs;
-        protected boolean useNativeJsonSchema;
         protected GeminiCachingConfig cachingConfig;
         protected List<ChatModelListener> listeners;
 
@@ -455,14 +445,6 @@ class BaseGeminiChatModel {
          */
         public B responseFormat(ResponseFormat responseFormat) {
             this.responseFormat = responseFormat;
-            return builder();
-        }
-
-        /**
-         * If set to true, uses provided {@code JsonRawSchema} directly as-is without parsing it to GeminiSchema (OpenAPI-style)
-         */
-        public B useNativeJsonSchema(boolean useNativeJsonSchema) {
-            this.useNativeJsonSchema = useNativeJsonSchema;
             return builder();
         }
 
