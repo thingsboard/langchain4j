@@ -9,7 +9,6 @@ import java.util.Map;
 record GeminiGenerationConfig(
         @JsonProperty("stopSequences") List<String> stopSequences,
         @JsonProperty("responseMimeType") String responseMimeType,
-        @JsonProperty("responseSchema") GeminiSchema responseSchema,
         @JsonProperty("responseJsonSchema") Map<String, Object> responseJsonSchema,
         @JsonProperty("candidateCount") Integer candidateCount,
         @JsonProperty("maxOutputTokens") Integer maxOutputTokens,
@@ -32,7 +31,6 @@ record GeminiGenerationConfig(
 
         private List<String> stopSequences;
         private String responseMimeType;
-        private GeminiSchema responseSchema;
         private Map<String, Object> responseJsonSchema;
         private Integer candidateCount;
         private Integer maxOutputTokens;
@@ -56,11 +54,6 @@ record GeminiGenerationConfig(
 
         GeminiGenerationConfigBuilder responseMimeType(String responseMimeType) {
             this.responseMimeType = responseMimeType;
-            return this;
-        }
-
-        GeminiGenerationConfigBuilder responseSchema(GeminiSchema responseSchema) {
-            this.responseSchema = responseSchema;
             return this;
         }
 
@@ -133,7 +126,6 @@ record GeminiGenerationConfig(
             return new GeminiGenerationConfig(
                     stopSequences,
                     responseMimeType,
-                    responseSchema,
                     responseJsonSchema,
                     candidateCount,
                     maxOutputTokens,
