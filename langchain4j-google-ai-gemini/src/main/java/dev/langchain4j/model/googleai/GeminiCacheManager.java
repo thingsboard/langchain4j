@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import dev.langchain4j.exception.HttpException;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -38,24 +37,49 @@ public class GeminiCacheManager {
 
     public String getOrCreateCached(String key, Duration ttl, GeminiContent content,
                                     GeminiTool tools, GeminiToolConfig toolConfig, String model) {
-        return cachedContents.compute(key, (__, cachedContent) -> {
+        CachedContentMetadata result = cachedContents.compute(key, (__, cachedContent) -> {
             if (cachedContent != null) {
-                if (cachedContent.isExpired()) {
-                    log.debug("Cached content for key '{}' is expired: {}", key, cachedContent);
+                if (cachedContent.hasExpired()) {
+                    log.debug("Cached content for key '{}' has expired: {}", key, cachedContent);
                 } else if (cachedContent.checksumMatches(content, tools, toolConfig)) {
-                    if (cachedContent.isAlmostExpired()) {
+                    if (cachedContent.hasAlmostExpired()) {
                         log.debug("Using existing cached content for key '{}' and extending TTL due to approaching expiration: {}", key, cachedContent);
-                        return extendTtl(cachedContent, ttl);
+                        try {
+                            cachedContent = extendTtl(cachedContent, ttl);
+                            log.debug("Extended TTL for cached content '{}': {}", key, cachedContent);
+                            return cachedContent;
+                        } catch (Exception e) {
+                            log.error("Failed to extend TTL for cached content '{}': {}", key, cachedContent, e);
+                            return null;
+                        }
                     }
                     log.debug("Using existing cached content for key '{}': {}", key, cachedContent);
                     return cachedContent;
                 } else {
                     log.debug("Cached content for key '{}' has different checksum, deleting: {}", key, cachedContent);
-                    deleteCachedContent(cachedContent);
+                    try {
+                        deleteCachedContent(cachedContent);
+                    } catch (Exception e) {
+                        log.error("Failed to delete cached content for key '{}': {}", key, cachedContent, e);
+                        return null;
+                    }
                 }
             }
-            return createCachedContent(key, ttl, content, tools, toolConfig, model);
-        }).getId();
+            try {
+                return createCachedContent(key, ttl, content, tools, toolConfig, model);
+            } catch (Exception e) {
+                log.error("Failed to create cached content for key '{}': {}", key, e.getMessage(), e);
+                return null;
+            }
+        });
+        return result != null ? result.getId() : null;
+    }
+
+    public void invalidate(String key) {
+        CachedContentMetadata removed = cachedContents.remove(key);
+        if (removed != null) {
+            log.error("Invalidated cached content for key '{}': {}", key, removed);
+        }
     }
 
     private CachedContentMetadata extendTtl(CachedContentMetadata cachedContent, Duration ttl) {
@@ -65,21 +89,12 @@ public class GeminiCacheManager {
         String cacheName = StringUtils.removeStart(cachedContent.getId(), "cachedContents/");
         updated = geminiService.updateCachedContent(cacheName, updated);
         CachedContentMetadata newMetadata = new CachedContentMetadata(updated);
-        log.debug("Extended TTL for cached content '{}': {}", newMetadata.getKey(), newMetadata);
         return newMetadata;
     }
 
     private void deleteCachedContent(CachedContentMetadata cachedContent) {
-        try {
-            log.debug("Deleting cached content for key '{}': {}", cachedContent.getKey(), cachedContent);
-            geminiService.deleteCachedContent(StringUtils.removeStart(cachedContent.getId(), "cachedContents/"));
-        } catch (HttpException e) {
-            if (e.statusCode() == 403 || e.statusCode() == 404) {
-                log.debug("Couldn't delete cached content for key '{}': {}", cachedContent.getKey(), e.getMessage());
-            } else {
-                throw e;
-            }
-        }
+        log.debug("Deleting cached content for key '{}': {}", cachedContent.getKey(), cachedContent);
+        geminiService.deleteCachedContent(StringUtils.removeStart(cachedContent.getId(), "cachedContents/"));
     }
 
     private CachedContentMetadata createCachedContent(String key, Duration ttl, GeminiContent content,
@@ -139,11 +154,11 @@ public class GeminiCacheManager {
             return expirationTime;
         }
 
-        public boolean isAlmostExpired() {
+        public boolean hasAlmostExpired() {
             return expirationTime.minusSeconds(60).isBefore(Instant.now());
         }
 
-        public boolean isExpired() {
+        public boolean hasExpired() {
             return expirationTime.isBefore(Instant.now());
         }
 

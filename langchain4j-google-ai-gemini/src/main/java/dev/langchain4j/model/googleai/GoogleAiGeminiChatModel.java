@@ -7,6 +7,7 @@ import static dev.langchain4j.model.ModelProvider.GOOGLE_AI_GEMINI;
 import static dev.langchain4j.model.chat.Capability.RESPONSE_FORMAT_JSON_SCHEMA;
 import static java.util.Arrays.asList;
 
+import dev.langchain4j.internal.ExceptionMapper;
 import dev.langchain4j.model.ModelProvider;
 import dev.langchain4j.model.chat.Capability;
 import dev.langchain4j.model.chat.ChatModel;
@@ -21,6 +22,8 @@ import java.util.List;
 import java.util.Set;
 
 public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements ChatModel {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GoogleAiGeminiChatModel.class);
+
     private final Set<Capability> supportedCapabilities;
     private final Integer maximumRetries;
 
@@ -47,9 +50,26 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
     public ChatResponse doChat(ChatRequest chatRequest) {
         GeminiGenerateContentRequest request = createGenerateContentRequest(chatRequest);
 
+        if (request.cachedContent() != null) {
+            try {
+                GeminiGenerateContentResponse geminiResponse = ExceptionMapper.mappingException(
+                        () -> geminiService.generateContent(chatRequest.modelName(), request));
+                return processResponse(geminiResponse);
+            } catch (Exception e) {
+                if (isCachedContentNotFoundError(e)) {
+                    log.error("Likely got 'CachedContent not found' error for '{}', retrying without cache", request.cachedContent(), e);
+                    invalidateCache();
+                    GeminiGenerateContentRequest retryRequest = createGenerateContentRequest(chatRequest, true);
+                    GeminiGenerateContentResponse geminiResponse = withRetryMappingExceptions(
+                            () -> geminiService.generateContent(chatRequest.modelName(), retryRequest), maximumRetries);
+                    return processResponse(geminiResponse);
+                }
+                throw e;
+            }
+        }
+
         GeminiGenerateContentResponse geminiResponse = withRetryMappingExceptions(
                 () -> geminiService.generateContent(chatRequest.modelName(), request), maximumRetries);
-
         return processResponse(geminiResponse);
     }
 

@@ -11,7 +11,9 @@ import static dev.langchain4j.model.googleai.SchemaMapper.fromJsonSchemaToGSchem
 import static dev.langchain4j.model.output.FinishReason.TOOL_EXECUTION;
 
 import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.exception.HttpException;
 import dev.langchain4j.http.client.HttpClientBuilder;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ChatRequestParameters;
@@ -127,6 +129,10 @@ class BaseGeminiChatModel {
     }
 
     protected GeminiGenerateContentRequest createGenerateContentRequest(ChatRequest chatRequest) {
+        return createGenerateContentRequest(chatRequest, false);
+    }
+
+    protected GeminiGenerateContentRequest createGenerateContentRequest(ChatRequest chatRequest, boolean skipCaching) {
         ChatRequestParameters parameters = chatRequest.parameters();
 
         GeminiContent systemInstruction = new GeminiContent(List.of(), GeminiRole.MODEL.toString());
@@ -144,12 +150,14 @@ class BaseGeminiChatModel {
         String cachedContent = null;
         if (systemInstruction.parts().isEmpty()) {
             systemInstruction = null;
-        } else if (cachingConfig != null && cachingConfig.isCacheContents()) {
+        } else if (!skipCaching && cachingConfig != null && cachingConfig.isCacheContents()) {
             cachedContent = cacheManager.getOrCreateCached(cachingConfig.getCacheKey(), cachingConfig.getTtl(),
                     systemInstruction, geminiTools, geminiToolConfig, chatRequest.modelName());
-            systemInstruction = null;
-            geminiTools = null;
-            geminiToolConfig = null;
+            if (cachedContent != null) {
+                systemInstruction = null;
+                geminiTools = null;
+                geminiToolConfig = null;
+            }
         }
 
         ResponseFormat responseFormat = chatRequest.responseFormat();
@@ -280,6 +288,20 @@ class BaseGeminiChatModel {
     protected TokenUsage createTokenUsage(GeminiUsageMetadata tokenCounts) {
         return new TokenUsage(
                 tokenCounts.promptTokenCount(), tokenCounts.candidatesTokenCount(), tokenCounts.totalTokenCount());
+    }
+
+    protected boolean isCachedContentNotFoundError(Throwable e) {
+        HttpException httpException = ExceptionUtils.throwableOfType(e, HttpException.class);
+        return httpException != null
+                && httpException.statusCode() == 403
+                && httpException.getMessage() != null
+                && httpException.getMessage().contains("CachedContent");
+    }
+
+    protected void invalidateCache() {
+        if (cacheManager != null && cachingConfig != null) {
+            cacheManager.invalidate(cachingConfig.getCacheKey());
+        }
     }
 
     /**

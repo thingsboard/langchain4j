@@ -1,18 +1,24 @@
 package dev.langchain4j.model.googleai;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.exception.HttpException;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import dev.langchain4j.model.googleai.GeminiGenerateContentResponse.GeminiCandidate;
 import dev.langchain4j.model.googleai.GeminiGenerateContentResponse.GeminiCandidate.GeminiFinishReason;
 import dev.langchain4j.model.output.FinishReason;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Nested;
@@ -307,6 +313,94 @@ class GoogleAiGeminiChatModelTest {
                             .candidateCount(1)
                             .responseLogprobs(false)
                             .build());
+        }
+    }
+
+    @Nested
+    class CacheEvictionTest {
+        @Mock
+        GeminiCacheManager mockCacheManager;
+
+        @Captor
+        ArgumentCaptor<GeminiGenerateContentRequest> requestCaptor;
+
+        private static final String CACHE_KEY = "test-cache-key";
+        private static final String CACHED_CONTENT_ID = "cachedContents/abc123";
+
+        private GoogleAiGeminiChatModel buildModelWithCaching() {
+            var cachingConfig = GeminiCachingConfig.builder()
+                    .cacheContents(true)
+                    .cacheKey(CACHE_KEY)
+                    .ttl(Duration.ofMinutes(30))
+                    .cacheManagerProvider(svc -> mockCacheManager)
+                    .build();
+
+            return GoogleAiGeminiChatModel.builder()
+                    .apiKey("test-api-key")
+                    .modelName(TEST_MODEL_NAME)
+                    .cachingConfig(cachingConfig)
+                    .maxRetries(0)
+                    .build(mockGeminiService);
+        }
+
+        private ChatRequest buildChatRequestWithSystem() {
+            return ChatRequest.builder()
+                    .messages(
+                            new SystemMessage("You are a helpful assistant"),
+                            new UserMessage("Hello"))
+                    .build();
+        }
+
+        @Test
+        void shouldRetryWithoutCacheWhenCachedContentEvicted() {
+            // Given
+            when(mockCacheManager.getOrCreateCached(anyString(), any(), any(), any(), any(), anyString()))
+                    .thenReturn(CACHED_CONTENT_ID);
+
+            var expectedResponse = createGeminiResponse("Success after retry");
+            when(mockGeminiService.generateContent(eq(TEST_MODEL_NAME), any(GeminiGenerateContentRequest.class)))
+                    .thenThrow(new HttpException(403, "CachedContent not found"))
+                    .thenReturn(expectedResponse);
+
+            var subject = buildModelWithCaching();
+            var chatRequest = buildChatRequestWithSystem();
+
+            // When
+            var chatResponse = subject.chat(chatRequest);
+
+            // Then
+            assertThat(chatResponse.aiMessage().text()).isEqualTo("Success after retry");
+            verify(mockCacheManager).invalidate(CACHE_KEY);
+
+            // Verify two calls: first with cache, second without
+            verify(mockGeminiService, times(2))
+                    .generateContent(eq(TEST_MODEL_NAME), requestCaptor.capture());
+            var requests = requestCaptor.getAllValues();
+            assertThat(requests.get(0).cachedContent()).isEqualTo(CACHED_CONTENT_ID);
+            assertThat(requests.get(1).cachedContent()).isNull();
+            // Retry request should include system instruction since cache was skipped
+            assertThat(requests.get(1).systemInstruction()).isNotNull();
+        }
+
+        @Test
+        void shouldPropagateNonCacheRelated403() {
+            // Given
+            when(mockCacheManager.getOrCreateCached(anyString(), any(), any(), any(), any(), anyString()))
+                    .thenReturn(CACHED_CONTENT_ID);
+
+            when(mockGeminiService.generateContent(eq(TEST_MODEL_NAME), any(GeminiGenerateContentRequest.class)))
+                    .thenThrow(new HttpException(403, "Permission denied"));
+
+            var subject = buildModelWithCaching();
+            var chatRequest = buildChatRequestWithSystem();
+
+            // When/Then - 403 gets mapped to AuthenticationException by ExceptionMapper
+            assertThatThrownBy(() -> subject.chat(chatRequest))
+                    .isInstanceOf(dev.langchain4j.exception.AuthenticationException.class)
+                    .hasCauseInstanceOf(HttpException.class);
+
+            // Should NOT invalidate cache for non-cache 403
+            verify(mockCacheManager, times(0)).invalidate(anyString());
         }
     }
 
