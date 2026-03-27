@@ -10,6 +10,12 @@ import static dev.langchain4j.model.googleai.PartsAndContentsMapper.fromMessageT
 import static dev.langchain4j.model.googleai.SchemaMapper.fromJsonSchemaToGSchema;
 import static dev.langchain4j.model.output.FinishReason.TOOL_EXECUTION;
 
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.http.client.HttpClientBuilder;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
@@ -25,11 +31,6 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.googleai.GeminiGenerateContentResponse.GeminiCandidate;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.TokenUsage;
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import org.slf4j.Logger;
 
 class BaseGeminiChatModel {
@@ -141,12 +142,15 @@ class BaseGeminiChatModel {
                 this.retrieveGoogleMapsWidgetToken);
         GeminiToolConfig geminiToolConfig = toToolConfig(parameters.toolChoice(), this.functionCallingConfig);
 
-        String cachedContent = null;
+        Supplier<String> cachedContent = null;
         if (systemInstruction.parts().isEmpty()) {
             systemInstruction = null;
         } else if (cachingConfig != null && cachingConfig.isCacheContents()) {
-            cachedContent = cacheManager.getOrCreateCached(cachingConfig.getCacheKey(), cachingConfig.getTtl(),
-                    systemInstruction, geminiTools, geminiToolConfig, chatRequest.modelName());
+            final GeminiContent finalSystemInstruction = systemInstruction;
+            final GeminiTool finalGeminiTools = geminiTools;
+            final GeminiToolConfig finalGeminiToolConfig = geminiToolConfig;
+            cachedContent = () -> cacheManager.getOrCreateCached(cachingConfig.getCacheKey(), cachingConfig.getTtl(),
+                    finalSystemInstruction, finalGeminiTools, finalGeminiToolConfig, chatRequest.modelName());
             systemInstruction = null;
             geminiTools = null;
             geminiToolConfig = null;
@@ -635,8 +639,8 @@ class BaseGeminiChatModel {
          * signatures required for the model's reasoning context.</p>
          *
          * @param sendOriginalContentParts {@code true} to bypass standard conversion and send
-         * original content parts; {@code false} to use standard
-         * LangChain4j logic.
+         *                                 original content parts; {@code false} to use standard
+         *                                 LangChain4j logic.
          * @return the builder instance.
          */
         public B sendOriginalContentParts(boolean sendOriginalContentParts) {
