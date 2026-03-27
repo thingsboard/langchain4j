@@ -1,7 +1,9 @@
 package dev.langchain4j.model.googleai;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
+import java.util.function.Supplier;
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 record GeminiGenerateContentRequest(
@@ -12,7 +14,12 @@ record GeminiGenerateContentRequest(
         List<GeminiSafetySetting> safetySettings,
         GeminiContent systemInstruction,
         GeminiGenerationConfig generationConfig,
-        String cachedContent) {
+        Supplier<String> cachedContent) {
+
+    @JsonGetter("cachedContent")
+    public String getCachedContent() {
+        return cachedContent != null ? cachedContent.get() : null;
+    }
 
     static GeminiGenerateContentRequestBuilder builder() {
         return new GeminiGenerateContentRequestBuilder();
@@ -26,9 +33,10 @@ record GeminiGenerateContentRequest(
         private List<GeminiSafetySetting> safetySettings;
         private GeminiContent systemInstruction;
         private GeminiGenerationConfig generationConfig;
-        private String cachedContent;
+        private Supplier<String> cachedContent;
 
-        GeminiGenerateContentRequestBuilder() {}
+        GeminiGenerateContentRequestBuilder() {
+        }
 
         GeminiGenerateContentRequestBuilder model(String model) {
             this.model = model;
@@ -65,7 +73,7 @@ record GeminiGenerateContentRequest(
             return this;
         }
 
-        GeminiGenerateContentRequestBuilder cachedContent(String cachedContent) {
+        GeminiGenerateContentRequestBuilder cachedContent(Supplier<String> cachedContent) {
             this.cachedContent = cachedContent;
             return this;
         }
