@@ -1,5 +1,6 @@
 package dev.langchain4j.agentic.internal;
 
+import static dev.langchain4j.agentic.AgenticServices.createBuiltInAgentExecutor;
 import static dev.langchain4j.internal.Utils.getAnnotatedMethod;
 import static dev.langchain4j.internal.Utils.isNullOrBlank;
 import static dev.langchain4j.service.TypeUtils.isImageType;
@@ -84,36 +85,50 @@ public class AgentUtil {
 
     public static AgentExecutor agentToExecutor(Object agent) {
         if (agent instanceof Class c) {
+            AgentExecutor builtInAgent = createBuiltInAgentExecutor(c);
+            if (builtInAgent != null) {
+                return builtInAgent;
+            }
             agent = AgenticServices.agentBuilder(c).build();
         }
         return agent instanceof InternalAgent internalAgent
                 ? agentToExecutor(internalAgent)
-                : nonAiAgentToExecutor(agent);
+                : nonAiAgentToExecutor(agent, validateAgentClass(agent.getClass()));
     }
 
-    private static AgentExecutor nonAiAgentToExecutor(Object agent) {
-        Method agenticMethod = validateAgentClass(agent.getClass());
+    public static AgentExecutor nonAiAgentToExecutor(Object agent, Method agenticMethod) {
         Agent annotation = agenticMethod.getAnnotation(Agent.class);
         String name = isNullOrBlank(annotation.name()) ? agenticMethod.getName() : annotation.name();
         String description = isNullOrBlank(annotation.description()) ? annotation.value() : annotation.description();
-        return new AgentExecutor(nonAiAgentInvoker(agent, agenticMethod, name, description, annotation), agent);
+        String outputKey = AgentUtil.outputKey(annotation.outputKey(), annotation.typedOutputKey());
+        return new AgentExecutor(nonAiAgentInvoker(agent, agenticMethod, name, description, outputKey, annotation.async()), agent);
     }
 
-    private static AgentInvoker nonAiAgentInvoker(Object agent, Method agenticMethod, String name, String description, Agent annotation) {
+    private static AgentInvoker nonAiAgentInvoker(Object agent, Method agenticMethod, String name, String description, String outputKey, boolean async) {
         return agent instanceof AgentSpecsProvider spec
                 ? AgentInvoker.fromSpec(spec, agenticMethod, name)
-                : AgentInvoker.fromMethod(
-                        new NonAiAgentInstance(agenticMethod.getDeclaringClass(),
-                                name, description, agenticMethod.getGenericReturnType(), annotation.outputKey(), annotation.async(),
-                                argumentsFromMethod(agenticMethod), null),
+                : nonAiAgentInvoker(agenticMethod, name, description, outputKey, async);
+    }
+
+    public static AgentInvoker nonAiAgentInvoker(Method agenticMethod, String name, String description, String outputKey, boolean async) {
+        return AgentInvoker.fromMethod(
+                new NonAiAgentInstance(agenticMethod.getDeclaringClass(),
+                        name, description, agenticMethod.getGenericReturnType(), outputKey, async,
+                        argumentsFromMethod(agenticMethod), null),
                 agenticMethod);
     }
 
     public static AgentExecutor agentToExecutor(InternalAgent agent) {
         for (Method method : agent.getClass().getMethods()) {
-            Optional<AgentExecutor> executor = A2AService.get().isPresent()
-                    ? A2AService.get().methodToAgentExecutor(agent, method)
-                    : methodToAgentExecutor(agent, method);
+            Optional<AgentExecutor> executor = McpService.get().methodToAgentExecutor(agent, method);
+            if (executor.isPresent()) {
+                return executor.get();
+            }
+            executor = A2AService.get().methodToAgentExecutor(agent, method);
+            if (executor.isPresent()) {
+                return executor.get();
+            }
+            executor = methodToAgentExecutor(agent, method);
             if (executor.isPresent()) {
                 return executor.get();
             }
@@ -162,6 +177,11 @@ public class AgentUtil {
     private static Object parameterDefaultValue(Parameter p) {
         K k = p.getAnnotation(K.class);
         return k != null ? stateInstance(k.value()).defaultValue() : null;
+    }
+
+    public static AgentInvocationArguments agentInvocationArguments(
+            AgenticScope agenticScope, Method method) throws MissingArgumentException {
+        return agentInvocationArguments(agenticScope, argumentsFromMethod(method), Map.of());
     }
 
     public static AgentInvocationArguments agentInvocationArguments(

@@ -3,6 +3,7 @@ package dev.langchain4j.model.googleai;
 import static dev.langchain4j.internal.Utils.isNullOrEmpty;
 import static dev.langchain4j.model.googleai.Json.toJsonWithoutIndent;
 import static dev.langchain4j.model.googleai.SchemaMapper.fromJsonSchemaToGSchema;
+import static java.util.Collections.singletonList;
 
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.Objects;
 
 class FunctionMapper {
-    static GeminiTool fromToolSepcsToGTool(
+    static List<GeminiTool> fromToolSpecsToGTools(
             List<ToolSpecification> specifications,
             boolean allowCodeExecution,
             boolean allowGoogleSearch,
@@ -26,12 +27,12 @@ class FunctionMapper {
             if (allowCodeExecution || allowGoogleSearch || allowUrlContext || allowGoogleMaps) {
                 // if there's no tool specification, but there's Python code execution or Google Search retrieval
                 // or URL context or Google Maps
-                return new GeminiTool(
+                return singletonList(new GeminiTool(
                         null,
                         allowCodeExecution ? new GeminiCodeExecution() : null,
                         allowGoogleSearch ? new GeminiGoogleSearchRetrieval() : null,
                         allowUrlContext ? new GeminiUrlContext() : null,
-                        allowGoogleMaps ? new GeminiGoogleMaps(retrieveGoogleMapsWidgetToken) : null);
+                        allowGoogleMaps ? new GeminiGoogleMaps(retrieveGoogleMapsWidgetToken) : null));
             } else {
                 // if there's neither tool specification nor Python code execution nor URL context nor Google Search
                 // retrieval
@@ -57,12 +58,12 @@ class FunctionMapper {
                 .filter(Objects::nonNull)
                 .toList();
 
-        return new GeminiTool(
+        return singletonList(new GeminiTool(
                 functionDeclarations.isEmpty() ? null : functionDeclarations,
                 allowCodeExecution ? new GeminiCodeExecution() : null,
                 allowGoogleSearch ? new GeminiGoogleSearchRetrieval() : null,
                 allowUrlContext ? new GeminiUrlContext() : null,
-                allowGoogleMaps ? new GeminiGoogleMaps(retrieveGoogleMapsWidgetToken) : null);
+                allowGoogleMaps ? new GeminiGoogleMaps(retrieveGoogleMapsWidgetToken) : null));
     }
 
     static List<ToolExecutionRequest> toToolExecutionRequests(List<GeminiFunctionCall> functionCalls) {

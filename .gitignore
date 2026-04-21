@@ -41,3 +41,8 @@ build/
 langchain4j-core/target_test-classes/
 
 ## AI Coding Assistants ###
+CLAUDE.md
+.claude
+
+### Quarkus stuff ###
+.quarkus

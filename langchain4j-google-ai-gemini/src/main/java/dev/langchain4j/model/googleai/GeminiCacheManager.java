@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -37,7 +38,7 @@ public class GeminiCacheManager {
     }
 
     public String getOrCreateCached(String key, Duration ttl, GeminiContent content,
-                                    GeminiTool tools, GeminiToolConfig toolConfig, String model) {
+                                    List<GeminiTool> tools, GeminiToolConfig toolConfig, String model) {
         return cachedContents.compute(key, (__, cachedContent) -> {
             if (cachedContent != null) {
                 if (cachedContent.isExpired()) {
@@ -83,10 +84,10 @@ public class GeminiCacheManager {
     }
 
     private CachedContentMetadata createCachedContent(String key, Duration ttl, GeminiContent content,
-                                                      GeminiTool tools, GeminiToolConfig toolConfig, String model) {
+                                                      List<GeminiTool> tools, GeminiToolConfig toolConfig, String model) {
         GeminiCachedContent cachedContent = GeminiCachedContent.builder()
                 .systemInstruction(content)
-                .tools(tools != null ? Collections.singletonList(tools) : null)
+                .tools(tools)
                 .toolConfig(toolConfig)
                 .ttl(ttl.toSeconds() + "s")
                 .displayName(key + ":" + getChecksum(content, tools, toolConfig))
@@ -98,7 +99,7 @@ public class GeminiCacheManager {
         return newCachedContent;
     }
 
-    private static String getChecksum(GeminiContent content, GeminiTool tools, GeminiToolConfig toolConfig) {
+    private static String getChecksum(GeminiContent content, List<GeminiTool> tools, GeminiToolConfig toolConfig) {
         var sb = new StringBuilder();
         sb.append(content.parts().stream()
                 .map(GeminiContent.GeminiPart::text)
@@ -147,7 +148,7 @@ public class GeminiCacheManager {
             return expirationTime.isBefore(Instant.now());
         }
 
-        public boolean checksumMatches(GeminiContent content, GeminiTool tools, GeminiToolConfig toolConfig) {
+        public boolean checksumMatches(GeminiContent content, List<GeminiTool> tools, GeminiToolConfig toolConfig) {
             return this.checksum.equals(GeminiCacheManager.getChecksum(content, tools, toolConfig));
         }
 
