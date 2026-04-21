@@ -4,7 +4,7 @@ import static dev.langchain4j.internal.Utils.copy;
 import static dev.langchain4j.internal.Utils.copyIfNotNull;
 import static dev.langchain4j.internal.Utils.getOrDefault;
 import static dev.langchain4j.model.googleai.FinishReasonMapper.fromGFinishReasonToFinishReason;
-import static dev.langchain4j.model.googleai.FunctionMapper.fromToolSepcsToGTool;
+import static dev.langchain4j.model.googleai.FunctionMapper.fromToolSpecsToGTools;
 import static dev.langchain4j.model.googleai.PartsAndContentsMapper.fromGPartsToAiMessage;
 import static dev.langchain4j.model.googleai.PartsAndContentsMapper.fromMessageToGContent;
 import static dev.langchain4j.model.googleai.SchemaMapper.fromJsonSchemaToGSchema;
@@ -133,7 +133,7 @@ class BaseGeminiChatModel {
         GeminiContent systemInstruction = new GeminiContent(List.of(), GeminiRole.MODEL.toString());
         List<GeminiContent> geminiContentList =
                 fromMessageToGContent(chatRequest.messages(), systemInstruction, sendThinking, mediaResolutionPerPartEnabled, sendOriginalContentParts);
-        GeminiTool geminiTools = fromToolSepcsToGTool(
+        List<GeminiTool> geminiTools = fromToolSpecsToGTools(
                 chatRequest.toolSpecifications(),
                 this.allowCodeExecution,
                 this.allowGoogleSearch,
@@ -147,7 +147,7 @@ class BaseGeminiChatModel {
             systemInstruction = null;
         } else if (cachingConfig != null && cachingConfig.isCacheContents()) {
             final GeminiContent finalSystemInstruction = systemInstruction;
-            final GeminiTool finalGeminiTools = geminiTools;
+            final List<GeminiTool> finalGeminiTools = geminiTools;
             final GeminiToolConfig finalGeminiToolConfig = geminiToolConfig;
             cachedContent = () -> cacheManager.getOrCreateCached(cachingConfig.getCacheKey(), cachingConfig.getTtl(),
                     finalSystemInstruction, finalGeminiTools, finalGeminiToolConfig, chatRequest.modelName());
@@ -268,7 +268,14 @@ class BaseGeminiChatModel {
                         .modelName(geminiResponse.modelVersion())
                         .tokenUsage(createTokenUsage(geminiResponse.usageMetadata()))
                         .finishReason(finishReason)
-                        .groundingMetadata(geminiResponse.groundingMetadata())
+                        .groundingMetadata(
+                                geminiResponse.groundingMetadata() != null
+                                        ? geminiResponse.groundingMetadata()
+                                        : firstCandidate.groundingMetadata())
+                        .urlContextMetadata(
+                                firstCandidate.urlContextMetadata() != null
+                                        ? toUrlContextMetadata(firstCandidate.urlContextMetadata())
+                                        : null)
                         .build())
                 .build();
     }
@@ -284,6 +291,28 @@ class BaseGeminiChatModel {
     protected TokenUsage createTokenUsage(GeminiUsageMetadata tokenCounts) {
         return new TokenUsage(
                 tokenCounts.promptTokenCount(), tokenCounts.candidatesTokenCount(), tokenCounts.totalTokenCount());
+    }
+
+    private UrlContextMetadata toUrlContextMetadata(
+            GeminiGenerateContentResponse.GeminiUrlContextMetadata geminiUrlContextMetadata) {
+        if (geminiUrlContextMetadata == null || geminiUrlContextMetadata.urlMetadata() == null) {
+            return null;
+        }
+        return new UrlContextMetadata(geminiUrlContextMetadata.urlMetadata().stream()
+                .map(this::toUrlMetadata)
+                .toList());
+    }
+
+    private UrlContextMetadata.UrlMetadata toUrlMetadata(
+            GeminiGenerateContentResponse.GeminiUrlMetadata geminiUrlMetadata) {
+        if (geminiUrlMetadata == null) {
+            return null;
+        }
+        return new UrlContextMetadata.UrlMetadata(
+                geminiUrlMetadata.retrievedUrl(),
+                geminiUrlMetadata.urlRetrievalStatus() != null
+                        ? geminiUrlMetadata.urlRetrievalStatus().toString()
+                        : null);
     }
 
     /**

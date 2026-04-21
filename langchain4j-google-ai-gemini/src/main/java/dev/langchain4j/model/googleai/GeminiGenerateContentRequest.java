@@ -4,16 +4,17 @@ import java.util.List;
 import java.util.function.Supplier;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 record GeminiGenerateContentRequest(
-        String model,
-        List<GeminiContent> contents,
-        GeminiTool tools,
-        GeminiToolConfig toolConfig,
-        List<GeminiSafetySetting> safetySettings,
-        GeminiContent systemInstruction,
-        GeminiGenerationConfig generationConfig,
+        @JsonProperty("model") String model,
+        @JsonProperty("contents") List<GeminiContent> contents,
+        @JsonProperty("tools") List<GeminiTool> tools,
+        @JsonProperty("toolConfig") GeminiToolConfig toolConfig,
+        @JsonProperty("safetySettings") List<GeminiSafetySetting> safetySettings,
+        @JsonProperty("systemInstruction") GeminiContent systemInstruction,
+        @JsonProperty("generationConfig") GeminiGenerationConfig generationConfig,
         Supplier<String> cachedContent) {
 
     @JsonGetter("cachedContent")
@@ -28,15 +29,14 @@ record GeminiGenerateContentRequest(
     static class GeminiGenerateContentRequestBuilder {
         private String model;
         private List<GeminiContent> contents;
-        private GeminiTool tools;
+        private List<GeminiTool> tools;
         private GeminiToolConfig toolConfig;
         private List<GeminiSafetySetting> safetySettings;
         private GeminiContent systemInstruction;
         private GeminiGenerationConfig generationConfig;
         private Supplier<String> cachedContent;
 
-        GeminiGenerateContentRequestBuilder() {
-        }
+        GeminiGenerateContentRequestBuilder() {}
 
         GeminiGenerateContentRequestBuilder model(String model) {
             this.model = model;
@@ -48,7 +48,7 @@ record GeminiGenerateContentRequest(
             return this;
         }
 
-        GeminiGenerateContentRequestBuilder tools(GeminiTool tools) {
+        GeminiGenerateContentRequestBuilder tools(List<GeminiTool> tools) {
             this.tools = tools;
             return this;
         }
