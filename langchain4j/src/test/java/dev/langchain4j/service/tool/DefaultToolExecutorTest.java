@@ -587,6 +587,39 @@ class DefaultToolExecutorTest implements WithAssertions {
     }
 
     @Test
+    void should_return_tool_execution_result_directly_when_tool_method_returns_it() throws NoSuchMethodException {
+
+        // given
+        ToolExecutionResult expectedResult = ToolExecutionResult.builder()
+                .result("raw-result")
+                .resultText("result visible to LLM")
+                .attributes(Map.of("metadata", "internal"))
+                .build();
+
+        class Tools {
+
+            @Tool
+            ToolExecutionResult tool() {
+                return expectedResult;
+            }
+        }
+
+        ToolExecutor toolExecutor = new DefaultToolExecutor(new Tools(), Tools.class.getDeclaredMethod("tool"));
+
+        ToolExecutionRequest toolRequest =
+                ToolExecutionRequest.builder().name("tool").arguments("{}").build();
+
+        // when
+        ToolExecutionResult actualResult = toolExecutor.executeWithContext(toolRequest, null);
+
+        // then
+        assertThat(actualResult).isSameAs(expectedResult);
+        assertThat(actualResult.result()).isEqualTo("raw-result");
+        assertThat(actualResult.resultText()).isEqualTo("result visible to LLM");
+        assertThat(actualResult.attributes()).containsEntry("metadata", "internal");
+    }
+
+    @Test
     void should_prepare_arguments_with_optional_parameter_provided() throws Exception {
 
         // given
