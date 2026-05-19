@@ -2,8 +2,10 @@ package dev.langchain4j.model.googleai;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import dev.langchain4j.exception.HttpException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
@@ -26,7 +28,8 @@ public class GeminiCacheManager {
 
     private static final ObjectMapper HASH_MAPPER = new ObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+            .configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
 
     private final GeminiService geminiService;
     private final ConcurrentMap<String, CachedContentMetadata> cachedContents;
@@ -49,12 +52,20 @@ public class GeminiCacheManager {
         String effectiveKey = cacheKey + ":" + getChecksum(content, tools, toolConfig);
         return cachedContents.compute(effectiveKey, (__, cachedContent) -> {
             if (cachedContent != null && !cachedContent.isExpired()) {
-                if (cachedContent.isAlmostExpired()) {
-                    log.debug("Extending TTL for cached content cacheKey='{}' effectiveKey='{}': {}", cacheKey, effectiveKey, cachedContent);
-                    return extendTtl(cachedContent, ttl);
+                if (!cachedContent.isAlmostExpired()) {
+                    log.debug("Using existing cached content cacheKey='{}' effectiveKey='{}': {}", cacheKey, effectiveKey, cachedContent);
+                    return cachedContent;
                 }
-                log.debug("Using existing cached content cacheKey='{}' effectiveKey='{}': {}", cacheKey, effectiveKey, cachedContent);
-                return cachedContent;
+                log.debug("Extending TTL for cached content cacheKey='{}' effectiveKey='{}': {}", cacheKey, effectiveKey, cachedContent);
+                try {
+                    return extendTtl(cachedContent, ttl);
+                } catch (HttpException e) {
+                    if (e.statusCode() != 403 && e.statusCode() != 404) {
+                        throw e;
+                    }
+                    log.debug("Failed to extend TTL for cacheKey='{}' effectiveKey='{}' (status={}); recreating: {}",
+                            cacheKey, effectiveKey, e.statusCode(), e.getMessage());
+                }
             }
             return createCachedContent(cacheKey, effectiveKey, ttl, content, tools, toolConfig, model);
         }).getId();
@@ -137,7 +148,7 @@ public class GeminiCacheManager {
         CachedContentMetadata(GeminiCachedContent cachedContent) {
             this.id = cachedContent.name();
             this.effectiveKey = cachedContent.displayName();
-            int sep = effectiveKey.indexOf(':');
+            int sep = effectiveKey.lastIndexOf(':');
             this.cacheKey = sep >= 0 ? effectiveKey.substring(0, sep) : effectiveKey;
             this.expirationTime = Instant.parse(cachedContent.expireTime());
         }
