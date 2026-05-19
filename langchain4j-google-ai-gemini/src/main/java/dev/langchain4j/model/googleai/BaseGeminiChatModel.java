@@ -3,6 +3,9 @@ package dev.langchain4j.model.googleai;
 import static dev.langchain4j.internal.Utils.copy;
 import static dev.langchain4j.internal.Utils.copyIfNotNull;
 import static dev.langchain4j.internal.Utils.getOrDefault;
+import static dev.langchain4j.internal.ValidationUtils.ensureNotBlank;
+import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
+import static dev.langchain4j.internal.ValidationUtils.ensureTrue;
 import static dev.langchain4j.model.googleai.FinishReasonMapper.fromGFinishReasonToFinishReason;
 import static dev.langchain4j.model.googleai.FunctionMapper.fromToolSpecsToGTools;
 import static dev.langchain4j.model.googleai.PartsAndContentsMapper.fromGPartsToAiMessage;
@@ -84,6 +87,10 @@ class BaseGeminiChatModel {
         this.cachingConfig = builder.cachingConfig;
 
         if (cachingConfig != null && cachingConfig.isCacheContents()) {
+            ensureNotBlank(cachingConfig.getCacheKey(), "cachingConfig.cacheKey");
+            Duration cacheTtl = ensureNotNull(cachingConfig.getTtl(), "cachingConfig.ttl");
+            ensureTrue(!cacheTtl.isZero() && !cacheTtl.isNegative(),
+                    "cachingConfig.ttl must be greater than zero");
             if (cachingConfig.getCacheManagerProvider() != null) {
                 this.cacheManager = cachingConfig.getCacheManagerProvider().apply(geminiService);
             } else {
