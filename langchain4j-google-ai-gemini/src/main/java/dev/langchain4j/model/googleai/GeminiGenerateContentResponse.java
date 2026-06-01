@@ -35,14 +35,12 @@ record GeminiGenerateContentResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record GeminiUrlContextMetadata(
-            @JsonProperty("urlMetadata") List<GeminiUrlMetadata> urlMetadata) {
-    }
+            @JsonProperty("urlMetadata") List<GeminiUrlMetadata> urlMetadata) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record GeminiUrlMetadata(
             @JsonProperty("retrievedUrl") String retrievedUrl,
-            @JsonProperty("urlRetrievalStatus") GeminiUrlRetrievalStatus urlRetrievalStatus) {
-    }
+            @JsonProperty("urlRetrievalStatus") GeminiUrlRetrievalStatus urlRetrievalStatus) {}
 
     enum GeminiUrlRetrievalStatus {
         URL_RETRIEVAL_STATUS_UNSPECIFIED,

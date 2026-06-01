@@ -162,38 +162,43 @@ public class OpenAiStreamingResponseBuilder {
             }
         }
 
-        if (delta.toolCalls() != null && !delta.toolCalls().isEmpty()) {
-            ToolCall toolCall = delta.toolCalls().get(0);
-            int toolCallIndex = toolCall.index() != null ? toolCall.index() : fallbackToolCallIndex.get();
-
-            ToolExecutionRequestBuilder builder = this.indexToToolExecutionRequestBuilder.computeIfAbsent(
-                    toolCallIndex, idx -> new ToolExecutionRequestBuilder());
-
-            // When index is null and a different tool call id appears, increment the fallback index
-            if (toolCall.index() == null
-                    && toolCall.id() != null
-                    && !builder.idBuilder.isEmpty()
-                    && !builder.idBuilder.toString().equals(toolCall.id())) {
-                toolCallIndex = fallbackToolCallIndex.incrementAndGet();
-                builder = this.indexToToolExecutionRequestBuilder.computeIfAbsent(
-                        toolCallIndex, idx -> new ToolExecutionRequestBuilder());
-            }
-
-            if (toolCall.id() != null) {
-                if (accumulateToolCallId) {
-                    builder.idBuilder.append(toolCall.id());
-                } else {
-                    builder.idBuilder.setLength(0);
-                    builder.idBuilder.append(toolCall.id());
+        if (delta.toolCalls() != null) {
+            for (ToolCall toolCall : delta.toolCalls()) {
+                if (isSentinel(toolCall)) {
+                    continue;
                 }
-            }
 
-            FunctionCall functionCall = toolCall.function();
-            if (functionCall.name() != null) {
-                builder.nameBuilder.append(functionCall.name());
-            }
-            if (functionCall.arguments() != null) {
-                builder.argumentsBuilder.append(functionCall.arguments());
+                int toolCallIndex = toolCall.index() != null ? toolCall.index() : fallbackToolCallIndex.get();
+
+                ToolExecutionRequestBuilder builder = this.indexToToolExecutionRequestBuilder.computeIfAbsent(
+                        toolCallIndex, idx -> new ToolExecutionRequestBuilder());
+
+                // When index is null and a different tool call id appears, increment the fallback index
+                if (toolCall.index() == null
+                        && toolCall.id() != null
+                        && !builder.idBuilder.isEmpty()
+                        && !builder.idBuilder.toString().equals(toolCall.id())) {
+                    toolCallIndex = fallbackToolCallIndex.incrementAndGet();
+                    builder = this.indexToToolExecutionRequestBuilder.computeIfAbsent(
+                            toolCallIndex, idx -> new ToolExecutionRequestBuilder());
+                }
+
+                if (toolCall.id() != null) {
+                    if (accumulateToolCallId) {
+                        builder.idBuilder.append(toolCall.id());
+                    } else {
+                        builder.idBuilder.setLength(0);
+                        builder.idBuilder.append(toolCall.id());
+                    }
+                }
+
+                FunctionCall functionCall = toolCall.function();
+                if (functionCall.name() != null) {
+                    builder.nameBuilder.append(functionCall.name());
+                }
+                if (functionCall.arguments() != null) {
+                    builder.argumentsBuilder.append(functionCall.arguments());
+                }
             }
         }
     }
@@ -290,6 +295,17 @@ public class OpenAiStreamingResponseBuilder {
                 .rawHttpResponse(rawHttpResponse.get())
                 .rawServerSentEvents(new ArrayList<>(rawServerSentEvents))
                 .build();
+    }
+
+    private static boolean isSentinel(ToolCall toolCall) {
+        boolean hasId = !isNullOrBlank(toolCall.id());
+        FunctionCall functionCall = toolCall.function();
+        if (functionCall == null) {
+            return !hasId;
+        }
+        boolean hasName = !isNullOrBlank(functionCall.name());
+        boolean hasArguments = functionCall.arguments() != null;
+        return !hasId && !hasName && !hasArguments;
     }
 
     private static class ToolExecutionRequestBuilder {

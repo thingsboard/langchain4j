@@ -39,7 +39,9 @@ import dev.langchain4j.model.googleai.GeminiEmbeddingRequestResponse.GeminiEmbed
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -55,6 +57,7 @@ public class GeminiService {
     private final HttpClient httpClient;
     private final String baseUrl;
     private final String apiKey;
+    private final Supplier<Map<String, String>> customHeadersSupplier;
 
     enum BatchOperationType {
         BATCH_GENERATE_CONTENT("batchGenerateContent"),
@@ -79,9 +82,11 @@ public class GeminiService {
             final boolean logRequests,
             final boolean logResponses,
             final Logger logger,
-            final Duration timeout) {
+            final Duration timeout,
+            final @Nullable Supplier<Map<String, String>> customHeadersSupplier) {
         this.apiKey = apiKey;
         this.baseUrl = getOrDefault(baseUrl, GeminiService.GEMINI_AI_ENDPOINT);
+        this.customHeadersSupplier = customHeadersSupplier;
         final var builder = getOrDefault(httpClientBuilder, HttpClientBuilderLoader::loadHttpClientBuilder);
         HttpClient httpClient = builder.connectTimeout(
                         firstNotNull("connectTimeout", timeout, builder.connectTimeout(), DEFAULT_CONNECT_TIMEOUT))
@@ -288,6 +293,12 @@ public class GeminiService {
                 .addHeader("User-Agent", "LangChain4j");
         if (apiKey != null) {
             builder.addHeader(API_KEY_HEADER_NAME, apiKey);
+        }
+        if (customHeadersSupplier != null) {
+            Map<String, String> customHeaders = customHeadersSupplier.get();
+            if (customHeaders != null) {
+                customHeaders.forEach(builder::addHeader);
+            }
         }
         if (body != null) {
             builder.body(Json.toJson(body));

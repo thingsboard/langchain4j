@@ -198,7 +198,7 @@ class GoogleAiGeminiGoogleMapsTest {
                     null,
                     null);
 
-            var usageMetadata = new GeminiUsageMetadata(10, 10, 20);
+            var usageMetadata = new GeminiUsageMetadata(10, 10, 20, null, null);
             var response = new GeminiGenerateContentResponse(
                     "id", "model", List.of(candidate), usageMetadata, groundingMetadata);
 
@@ -276,7 +276,7 @@ class GoogleAiGeminiGoogleMapsTest {
                     null,
                     groundingMetadata); // Grounding metadata on candidate
 
-            var usageMetadata = new GeminiUsageMetadata(10, 10, 20);
+            var usageMetadata = new GeminiUsageMetadata(10, 10, 20, null, null);
             var response = new GeminiGenerateContentResponse(
                     "id", "model", List.of(candidate), usageMetadata, null); // Grounding metadata
             // null on response
@@ -313,7 +313,7 @@ class GoogleAiGeminiGoogleMapsTest {
                 GeminiFinishReason.STOP,
                 null,
                 null);
-        var usageMetadata = new GeminiUsageMetadata(0, 0, 0);
+        var usageMetadata = new GeminiUsageMetadata(0, 0, 0, null, null);
         return new GeminiGenerateContentResponse("id", "model", List.of(candidate), usageMetadata, null);
     }
 }

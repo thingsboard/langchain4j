@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.thingsboard.langchain4j</groupId>
         <artifactId>langchain4j-parent</artifactId>
-        <version>1.13.0-beta23-TB3</version>
+        <version>1.15.1-beta25-TB1</version>
         <relativePath>../../langchain4j-parent/pom.xml</relativePath>
     </parent>
 
@@ -17,13 +17,13 @@
         <dependency>
             <groupId>org.thingsboard.langchain4j</groupId>
             <artifactId>langchain4j-core</artifactId>
-            <version>1.13.0-TB3</version>
+            <version>1.15.1-TB1</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
-            <version>2.0.32</version>
+            <version>2.0.36</version>
         </dependency>
 
     </dependencies>
