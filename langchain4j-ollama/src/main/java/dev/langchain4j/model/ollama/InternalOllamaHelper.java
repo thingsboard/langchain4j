@@ -176,6 +176,13 @@ class InternalOllamaHelper {
                         // numPredict and maxOutputTokens are semantically identical
                         .numPredict(requestParameters.maxOutputTokens())
                         .numCtx(requestParameters.numCtx())
+                        .numThread(requestParameters.numThread())
+                        .numKeep(requestParameters.numKeep())
+                        .typicalP(requestParameters.typicalP())
+                        .numBatch(requestParameters.numBatch())
+                        .numGPU(requestParameters.numGPU())
+                        .mainGPU(requestParameters.mainGPU())
+                        .useMmap(requestParameters.useMmap())
                         .stop(requestParameters.stopSequences())
                         .minP(requestParameters.minP())
                         .build())
@@ -260,9 +267,8 @@ class InternalOllamaHelper {
             return aiMessage.text();
         } else if (chatMessage instanceof ToolExecutionResultMessage toolExecutionResultMessage) {
             if (!toolExecutionResultMessage.hasSingleText()) {
-                throw new UnsupportedFeatureException(
-                        "Ollama does not support non-text content in tool results. "
-                                + "Only text content is supported.");
+                throw new UnsupportedFeatureException("Ollama does not support non-text content in tool results. "
+                        + "Only text content is supported.");
             }
             return toolExecutionResultMessage.text();
         } else {

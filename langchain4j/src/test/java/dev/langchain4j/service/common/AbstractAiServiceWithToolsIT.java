@@ -56,7 +56,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -862,7 +864,7 @@ public abstract class AbstractAiServiceWithToolsIT {
                 .tools(tool)
                 .build();
 
-        var text = adaptPrompt3("How much is 37 plus 87?");
+        var text = adaptPrompt3("How much is 37 plus 87? Answer in the following format: 37 + 87 = ...");
 
         // when
         var response = assistant.chat(text);
@@ -1027,7 +1029,7 @@ public abstract class AbstractAiServiceWithToolsIT {
                 .tools(addTool, multiplyTool)
                 .build();
 
-        var text = adaptPrompt1("First add 2 and 3, then multiply the result by 4");
+        var text = adaptPrompt1("First add 2 and 3 by calling 'add' tool, then multiply the result by 4 by calling 'multiply' tool");
 
         // when
         var response = assistant.chat(text);
@@ -1153,7 +1155,8 @@ public abstract class AbstractAiServiceWithToolsIT {
 
         assertThatThrownBy(() -> assistant.chat(text))
                 .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("add");
+                .hasMessageContaining(ReturnBehavior.IMMEDIATE.name())
+                .hasMessageContaining(Result.class.getName());
     }
 
     @ParameterizedTest
@@ -1183,7 +1186,7 @@ public abstract class AbstractAiServiceWithToolsIT {
         // when-then
         assertThatNoException().isThrownBy(() -> assistant.chat(text));
 
-        verify(tools).modify(7);
+        verify(tools, atLeastOnce()).modify(7);
 
         verify(model).chat(argThat((ChatRequest request) ->
                 request.messages().size() == 3
@@ -1220,10 +1223,10 @@ public abstract class AbstractAiServiceWithToolsIT {
         // when-then
         assertThatNoException().isThrownBy(() -> assistant.chat(text));
 
-        verify(tools).modify(7);
+        verify(tools, atLeastOnce()).modify(anyInt());
 
-        verify(model).chat(argThat((ChatRequest request) ->
-                request.messages().size() == 3
+        verify(model, atLeastOnce()).chat(argThat((ChatRequest request) ->
+                request.messages().size() > 2
                         && request.messages().get(2) instanceof ToolExecutionResultMessage toolResultMessage
                         && toolResultMessage.text().equals(" ")
                         && toolResultMessage.contents().equals(List.of(TextContent.from(" ")))

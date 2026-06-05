@@ -37,3 +37,5 @@ Versions follow the `{upstream_version}-TB{N}` scheme, where `{upstream_version}
 - Maven group ID changed to `org.thingsboard.langchain4j` (`d18c050`).
 - Distribution management configured for ThingsBoard's Maven repository (`4075ddf`, `ae6de7e`, `615a46d`).
 - Upstream GitHub workflows removed (TB uses its own CI) (`b79d357`).
+- Revapi API-compatibility checks disabled fork-wide via the `revapi.skip` property in `langchain4j-parent/pom.xml` (we intentionally diverge from upstream's published API).
+- Source JAR publishing disabled fork-wide via the `maven.source.skip` property in `langchain4j-parent/pom.xml` (the fork's sources are not published with the artifacts).

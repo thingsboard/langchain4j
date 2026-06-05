@@ -5,20 +5,20 @@
     <parent>
         <groupId>org.thingsboard.langchain4j</groupId>
         <artifactId>langchain4j-parent</artifactId>
-        <version>1.13.0-beta23-TB3</version>
+        <version>1.15.1-beta25-TB1</version>
         <relativePath>../langchain4j-parent/pom.xml</relativePath>
     </parent>
 
     <artifactId>langchain4j-bom</artifactId>
-    <version>1.13.0-TB3</version>
+    <version>1.15.1-TB1</version>
     <packaging>pom</packaging>
 
     <name>LangChain4j :: BOM</name>
     <description>Bill of Materials POM for getting full, complete set of compatible versions of LangChain4j modules</description>
 
     <properties>
-        <langchain4j.stable.version>1.13.0-TB3</langchain4j.stable.version>
-        <langchain4j.beta.version>1.13.0-beta23-TB3</langchain4j.beta.version>
+        <langchain4j.stable.version>1.15.1-TB1</langchain4j.stable.version>
+        <langchain4j.beta.version>1.15.1-beta25-TB1</langchain4j.beta.version>
     </properties>
 
     <dependencyManagement>
@@ -75,7 +75,7 @@
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-reactor</artifactId>
-                <version>1.13.0-beta23</version>
+                <version>1.15.1-beta25</version>
             </dependency>
 
             <dependency>
@@ -203,7 +203,13 @@
             <dependency>
                 <groupId>org.thingsboard.langchain4j</groupId>
                 <artifactId>langchain4j-vertex-ai-anthropic</artifactId>
-                <version>1.13.0-beta23-TB3</version>
+                <version>${langchain4j.beta.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.thingsboard.langchain4j</groupId>
+                <artifactId>langchain4j-google-genai</artifactId>
+                <version>${langchain4j.beta.version}</version>
             </dependency>
 
             <dependency>
@@ -622,47 +628,90 @@
                 <version>${langchain4j.beta.version}</version>
             </dependency>
 
-            <!-- spring boot -->
+            <!-- spring boot 3 -->
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-http-client-spring-restclient</artifactId>
-                <version>1.13.0-beta23</version>
+                <version>1.15.1-beta25</version>
             </dependency>
 
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-spring-boot-starter</artifactId>
-                <version>1.13.0-beta23</version>
+                <version>1.15.1-beta25</version>
             </dependency>
 
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-anthropic-spring-boot-starter</artifactId>
-                <version>1.13.0-beta23</version>
+                <version>1.15.1-beta25</version>
             </dependency>
 
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-azure-ai-search-spring-boot-starter</artifactId>
-                <version>1.13.0-beta23</version>
+                <version>1.15.1-beta25</version>
             </dependency>
 
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-azure-open-ai-spring-boot-starter</artifactId>
-                <version>1.13.0-beta23</version>
+                <version>1.15.1-beta25</version>
             </dependency>
 
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-ollama-spring-boot-starter</artifactId>
-                <version>1.13.0-beta23</version>
+                <version>1.15.1-beta25</version>
             </dependency>
 
             <dependency>
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
-                <version>1.13.0-beta23</version>
+                <version>1.15.1-beta25</version>
+            </dependency>
+
+            <!-- spring boot 4 -->
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-http-client-spring-boot4-restclient</artifactId>
+                <version>1.15.1-beta25</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-spring-boot4-starter</artifactId>
+                <version>1.15.1-beta25</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-anthropic-spring-boot4-starter</artifactId>
+                <version>1.15.1-beta25</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-azure-ai-search-spring-boot4-starter</artifactId>
+                <version>1.15.1-beta25</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-azure-open-ai-spring-boot4-starter</artifactId>
+                <version>1.15.1-beta25</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-ollama-spring-boot4-starter</artifactId>
+                <version>1.15.1-beta25</version>
+            </dependency>
+
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-open-ai-spring-boot4-starter</artifactId>
+                <version>1.15.1-beta25</version>
             </dependency>
 
         </dependencies>
