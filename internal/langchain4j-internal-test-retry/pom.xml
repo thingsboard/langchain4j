@@ -85,35 +85,6 @@
         </plugins>
     </build>
 
-    <profiles>
-        <profile>
-            <id>sign</id>
-            <activation>
-                <property>
-                    <name>sign</name>
-                </property>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.8</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                                <phase>verify</phase>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
-
     <licenses>
         <license>
             <name>The Apache Software License, Version 2.0</name>
