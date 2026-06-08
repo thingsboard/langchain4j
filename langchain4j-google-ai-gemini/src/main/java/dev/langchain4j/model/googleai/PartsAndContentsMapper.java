@@ -380,19 +380,21 @@ final class PartsAndContentsMapper {
                                         toolParts.add(fromContentToGPart(imageContent, mediaResolutionPerPartEnabled));
                                     } else {
                                         throw new UnsupportedFeatureException(
-                                                "Google AI Gemini does not support content type '"
-                                                        + content.type() + "' in tool results.");
+                                                "Google AI Gemini does not support content type '" + content.type()
+                                                        + "' in tool results.");
                                     }
                                 }
                                 if (responseMap.isEmpty()) {
                                     responseMap.put("response", "");
                                 }
-                                toolParts.add(0, GeminiContent.GeminiPart.builder()
-                                        .functionResponse(new GeminiFunctionResponse(
-                                                toolResultMessage.id(),
-                                                toolResultMessage.toolName(),
-                                                responseMap))
-                                        .build());
+                                toolParts.add(
+                                        0,
+                                        GeminiContent.GeminiPart.builder()
+                                                .functionResponse(new GeminiFunctionResponse(
+                                                        toolResultMessage.id(),
+                                                        toolResultMessage.toolName(),
+                                                        responseMap))
+                                                .build());
                                 return new GeminiContent(toolParts, GeminiRole.USER.toString());
                             }
 

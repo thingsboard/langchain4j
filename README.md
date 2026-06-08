@@ -26,7 +26,6 @@ Versions follow the `{upstream_version}-TB{N}` scheme, where `{upstream_version}
 ### Gemini enhancements
 - Send original content parts back to the model when continuing a conversation (`df6179c`).
 - Accumulate original content parts across streaming chunks instead of overwriting with last chunk's data (`f30e554`).
-- VALIDATED function calling mode — Gemini validates tool call arguments against the schema before returning them (`7219c5f`).
 
 ### AiServices framework extensions
 - Custom metadata support for `AiServices` and `Result` (token counts, model info, etc.) (`aa3063d`).

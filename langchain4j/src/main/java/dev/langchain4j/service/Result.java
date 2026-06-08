@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 
 import static dev.langchain4j.internal.Utils.copy;
-import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 
 /**
  * Represents the result of an AI Service invocation.
