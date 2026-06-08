@@ -34,12 +34,6 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.googleai.GeminiGenerateContentResponse.GeminiCandidate;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.TokenUsage;
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Supplier;
 import org.slf4j.Logger;
 
 class BaseGeminiChatModel {
@@ -66,6 +60,7 @@ class BaseGeminiChatModel {
     protected final boolean mediaResolutionPerPartEnabled;
     protected final GeminiCachingConfig cachingConfig;
     protected final GeminiGenerationConfig.GeminiImageConfig imageConfig;
+    protected final String cachedContentName;
 
     protected final ChatRequestParameters defaultRequestParameters;
 
@@ -92,7 +87,15 @@ class BaseGeminiChatModel {
         this.mediaResolution = builder.mediaResolution;
         this.mediaResolutionPerPartEnabled = getOrDefault(builder.mediaResolutionPerPartEnabled, false);
         this.imageConfig = buildImageConfig(builder.aspectRatio, builder.imageSize);
+        this.cachedContentName = builder.cachedContentName;
         this.cachingConfig = builder.cachingConfig;
+
+        if (cachedContentName != null && cachingConfig != null && cachingConfig.isCacheContents()) {
+            throw new IllegalArgumentException(
+                    "Cannot enable both 'cachedContentName' (a pre-created Gemini cache referenced by name) "
+                            + "and 'cachingConfig' (the managed GeminiCacheManager) at the same time; "
+                            + "choose a single caching mechanism.");
+        }
 
         if (cachingConfig != null && cachingConfig.isCacheContents()) {
             ensureNotBlank(cachingConfig.getCacheKey(), "cachingConfig.cacheKey");
@@ -159,7 +162,14 @@ class BaseGeminiChatModel {
         GeminiToolConfig geminiToolConfig = toToolConfig(parameters.toolChoice(), this.functionCallingConfig);
 
         Supplier<String> cachedContent = null;
-        if (systemInstruction.parts().isEmpty()) {
+        if (cachedContentName != null) {
+            // Upstream mechanism: a pre-created cache referenced by name, sent verbatim on every request.
+            // The cache already holds the system instruction, tools and tool config, so they must not be resent.
+            cachedContent = () -> cachedContentName;
+            systemInstruction = null;
+            geminiTools = null;
+            geminiToolConfig = null;
+        } else if (systemInstruction.parts().isEmpty()) {
             systemInstruction = null;
         } else if (cachingConfig != null && cachingConfig.isCacheContents()) {
             final GeminiContent finalSystemInstruction = systemInstruction;
@@ -392,6 +402,7 @@ class BaseGeminiChatModel {
         protected Boolean mediaResolutionPerPartEnabled;
         protected String aspectRatio;
         protected String imageSize;
+        protected String cachedContentName;
         protected Supplier<Map<String, String>> customHeadersSupplier;
 
         @SuppressWarnings("unchecked")
@@ -819,6 +830,22 @@ class BaseGeminiChatModel {
          */
         public B imageSize(String imageSize) {
             this.imageSize = imageSize;
+            return builder();
+        }
+
+        /**
+         * Sets the resource name of a previously created cache (e.g. {@code "cachedContents/abc123"}) to attach
+         * to every {@code generateContent} / {@code streamGenerateContent} request issued by this model. The cached
+         * context (system instructions, documents, etc.) will be reused server-side, reducing latency and token
+         * cost.
+         *
+         * <p>This integration does not manage the cache lifecycle (create / list / delete); callers are expected
+         * to create the cache out of band via the
+         * <a href="https://ai.google.dev/gemini-api/docs/caching">Gemini context caching API</a> and pass the
+         * returned resource name here.</p>
+         */
+        public B cachedContentName(String cachedContentName) {
+            this.cachedContentName = cachedContentName;
             return builder();
         }
 
