@@ -200,11 +200,16 @@ class DefaultAiServices<T> extends AiServices<T> {
                                     ? Optional.of(SystemMessage.from(transformedSystemMessage))
                                     : Optional.empty();
                         }
-                        var userMessageTemplate = getUserMessageTemplate(memoryId, method, args);
+                        // A caller may supply a fully pre-built UserMessage as an argument (its contents and
+                        // attributes intact); when present, it is used verbatim instead of being assembled from a
+                        // template. This lets callers attach metadata (e.g. attributes) that survive into chat memory.
+                        Optional<UserMessage> prebuiltUserMessage = findUserMessageArgument(method, args);
+                        var userMessageTemplate =
+                                prebuiltUserMessage.isPresent() ? "" : getUserMessageTemplate(memoryId, method, args);
                         var variables = InternalReflectionVariableResolver.findTemplateVariables(
                                 userMessageTemplate, method, args);
-                        UserMessage originalUserMessage =
-                                prepareUserMessage(method, args, userMessageTemplate, variables);
+                        UserMessage originalUserMessage = prebuiltUserMessage.orElseGet(
+                                () -> prepareUserMessage(method, args, userMessageTemplate, variables));
 
                         context.eventListenerRegistrar.fireEvent(AiServiceStartedEvent.builder()
                                 .invocationContext(invocationContext)
@@ -662,6 +667,27 @@ class DefaultAiServices<T> extends AiServices<T> {
         return maybeUserName
                 .map(userName -> UserMessage.from(userName, prompt.text()))
                 .orElseGet(prompt::toUserMessage);
+    }
+
+    /**
+     * Returns a pre-built {@link UserMessage} passed directly as an argument, if any. Matches either a
+     * parameter annotated with {@link dev.langchain4j.service.UserMessage @UserMessage} or the sole,
+     * un-annotated argument. When present, the message is used as-is (preserving its contents and
+     * attributes) and template assembly is skipped.
+     */
+    private static Optional<UserMessage> findUserMessageArgument(Method method, Object[] args) {
+        if (args == null) {
+            return Optional.empty();
+        }
+        Parameter[] parameters = method.getParameters();
+        for (int i = 0; i < parameters.length; i++) {
+            if (args[i] instanceof UserMessage userMessage
+                    && (parameters[i].isAnnotationPresent(dev.langchain4j.service.UserMessage.class)
+                            || (parameters.length == 1 && !hasAnyValidAnnotation(parameters[i])))) {
+                return Optional.of(userMessage);
+            }
+        }
+        return Optional.empty();
     }
 
     private String getUserMessageTemplate(Object memoryId, Method method, Object[] args) {
