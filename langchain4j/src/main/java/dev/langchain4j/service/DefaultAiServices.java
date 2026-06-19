@@ -234,7 +234,12 @@ class DefaultAiServices<T> extends AiServices<T> {
                             userMessageForAugmentation = (UserMessage) augmentationResult.chatMessage();
                         }
 
-                        UserMessage userMessage = addContentsToUserMessage(method, args, userMessageForAugmentation);
+                        // A pre-built UserMessage is already complete; use it as-is. Routing it through
+                        // addContentsToUserMessage would rebuild it text-only, silently dropping any
+                        // image/audio/pdf content (and throwing for a content-only message).
+                        UserMessage userMessage = prebuiltUserMessage.isPresent()
+                                ? userMessageForAugmentation
+                                : addContentsToUserMessage(method, args, userMessageForAugmentation);
 
                         var commonGuardrailParam = GuardrailRequestParams.builder()
                                 .chatMemory(chatMemory)
@@ -262,7 +267,9 @@ class DefaultAiServices<T> extends AiServices<T> {
                             if (supportsJsonSchema && !streaming && !returnsImage) {
                                 jsonSchema = serviceOutputParser.jsonSchema(returnType);
                             }
-                            if ((!supportsJsonSchema || jsonSchema.isEmpty()) && !streaming && !returnsImage) {
+                            if ((!supportsJsonSchema || jsonSchema.isEmpty()) && !streaming && !returnsImage
+                                    && prebuiltUserMessage.isEmpty()) {
+                                // Leave a pre-built message verbatim — don't append output-format instructions.
                                 userMessage = appendOutputFormatInstructions(returnType, userMessage);
                             }
                             if (supportsJsonSchema && jsonSchema.isPresent() && !returnsImage) {
