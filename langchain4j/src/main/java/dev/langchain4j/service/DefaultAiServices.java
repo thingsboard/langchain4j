@@ -204,8 +204,9 @@ class DefaultAiServices<T> extends AiServices<T> {
                         // attributes intact); when present, it is used verbatim instead of being assembled from a
                         // template. This lets callers attach metadata (e.g. attributes) that survive into chat memory.
                         Optional<UserMessage> prebuiltUserMessage = findUserMessageArgument(method, args);
+                        boolean verbatim = prebuiltUserMessage.isPresent();
                         var userMessageTemplate =
-                                prebuiltUserMessage.isPresent() ? "" : getUserMessageTemplate(memoryId, method, args);
+                                verbatim ? "" : getUserMessageTemplate(memoryId, method, args);
                         var variables = InternalReflectionVariableResolver.findTemplateVariables(
                                 userMessageTemplate, method, args);
                         UserMessage originalUserMessage = prebuiltUserMessage.orElseGet(
@@ -237,7 +238,7 @@ class DefaultAiServices<T> extends AiServices<T> {
                         // A pre-built UserMessage is already complete; use it as-is. Routing it through
                         // addContentsToUserMessage would rebuild it text-only, silently dropping any
                         // image/audio/pdf content (and throwing for a content-only message).
-                        UserMessage userMessage = prebuiltUserMessage.isPresent()
+                        UserMessage userMessage = verbatim
                                 ? userMessageForAugmentation
                                 : addContentsToUserMessage(method, args, userMessageForAugmentation);
 
@@ -267,9 +268,7 @@ class DefaultAiServices<T> extends AiServices<T> {
                             if (supportsJsonSchema && !streaming && !returnsImage) {
                                 jsonSchema = serviceOutputParser.jsonSchema(returnType);
                             }
-                            if ((!supportsJsonSchema || jsonSchema.isEmpty()) && !streaming && !returnsImage
-                                    && prebuiltUserMessage.isEmpty()) {
-                                // Leave a pre-built message verbatim — don't append output-format instructions.
+                            if ((!supportsJsonSchema || jsonSchema.isEmpty()) && !streaming && !returnsImage) {
                                 userMessage = appendOutputFormatInstructions(returnType, userMessage);
                             }
                             if (supportsJsonSchema && jsonSchema.isPresent() && !returnsImage) {
