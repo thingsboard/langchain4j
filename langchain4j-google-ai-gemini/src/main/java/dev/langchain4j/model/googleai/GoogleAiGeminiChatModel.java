@@ -47,10 +47,20 @@ public class GoogleAiGeminiChatModel extends BaseGeminiChatModel implements Chat
     public ChatResponse doChat(ChatRequest chatRequest) {
         GeminiGenerateContentRequest request = createGenerateContentRequest(chatRequest);
 
-        GeminiGenerateContentResponse geminiResponse = withRetryMappingExceptions(
-                () -> geminiService.generateContent(chatRequest.modelName(), request), maximumRetries);
+        try {
+            return processResponse(generate(chatRequest, request));
+        } catch (RuntimeException e) {
+            if (!(request.cachedContent() instanceof CachedContentSupplier cachedContentSupplier) || !isCachedContentFailure(e)) {
+                throw e;
+            }
+            cachedContentSupplier.evict();
+            return processResponse(generate(chatRequest, request));
+        }
+    }
 
-        return processResponse(geminiResponse);
+    private GeminiGenerateContentResponse generate(ChatRequest chatRequest, GeminiGenerateContentRequest request) {
+        return withRetryMappingExceptions(
+                () -> geminiService.generateContent(chatRequest.modelName(), request), maximumRetries);
     }
 
     @Override

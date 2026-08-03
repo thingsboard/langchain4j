@@ -4,7 +4,7 @@
 
     <groupId>org.thingsboard.langchain4j</groupId>
     <artifactId>langchain4j-parent</artifactId>
-    <version>1.16.1-beta26-TB2</version>
+    <version>1.16.1-beta26-TB3</version>
     <packaging>pom</packaging>
 
     <name>LangChain4j :: Parent POM</name>

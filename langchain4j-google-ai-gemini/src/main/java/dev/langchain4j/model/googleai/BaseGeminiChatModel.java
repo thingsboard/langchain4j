@@ -172,11 +172,8 @@ class BaseGeminiChatModel {
         } else if (systemInstruction.parts().isEmpty()) {
             systemInstruction = null;
         } else if (cachingConfig != null && cachingConfig.isCacheContents()) {
-            final GeminiContent finalSystemInstruction = systemInstruction;
-            final List<GeminiTool> finalGeminiTools = geminiTools;
-            final GeminiToolConfig finalGeminiToolConfig = geminiToolConfig;
-            cachedContent = () -> cacheManager.getOrCreateCached(cachingConfig.getCacheKey(), cachingConfig.getTtl(),
-                    finalSystemInstruction, finalGeminiTools, finalGeminiToolConfig, chatRequest.modelName());
+            cachedContent = new CachedContentSupplier(cacheManager, cachingConfig.getCacheKey(), cachingConfig.getTtl(),
+                    systemInstruction, geminiTools, geminiToolConfig, chatRequest.modelName());
             systemInstruction = null;
             geminiTools = null;
             geminiToolConfig = null;
@@ -223,6 +220,15 @@ class BaseGeminiChatModel {
                 .tools(geminiTools)
                 .toolConfig(geminiToolConfig)
                 .build();
+    }
+
+    protected static boolean isCachedContentFailure(Throwable error) {
+        String message = error.getMessage();
+        if (message == null) {
+            return false;
+        }
+        String normalized = message.toLowerCase();
+        return normalized.contains("cachedcontent") || normalized.contains("cached content") || normalized.contains("cached_content");
     }
 
     private GeminiToolConfig toToolConfig(ToolChoice toolChoice, GeminiFunctionCallingConfig functionCallingConfig) {

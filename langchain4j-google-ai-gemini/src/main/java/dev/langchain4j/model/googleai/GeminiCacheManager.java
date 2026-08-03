@@ -26,6 +26,10 @@ public class GeminiCacheManager {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiCacheManager.class);
 
+    private static final int MAX_DISPLAY_NAME_LENGTH = 128;
+    private static final int CHECKSUM_LENGTH = 64;
+    private static final int MAX_KEY_PREFIX_LENGTH = MAX_DISPLAY_NAME_LENGTH - CHECKSUM_LENGTH - 1;
+
     private static final ObjectMapper HASH_MAPPER = new ObjectMapper()
             .setSerializationInclusion(JsonInclude.Include.NON_NULL)
             .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
@@ -49,9 +53,9 @@ public class GeminiCacheManager {
 
     public String getOrCreateCached(String cacheKey, Duration ttl, GeminiContent content,
                                     List<GeminiTool> tools, GeminiToolConfig toolConfig, String model) {
-        String effectiveKey = cacheKey + ":" + getChecksum(content, tools, toolConfig);
+        String effectiveKey = prepareEffectiveKey(cacheKey, content, tools, toolConfig, model);
         return cachedContents.compute(effectiveKey, (__, cachedContent) -> {
-            if (cachedContent != null && !cachedContent.isExpired()) {
+            if (cachedContent != null && !cachedContent.isExpired() && cachedContent.matchesModel(model)) {
                 if (!cachedContent.isAlmostExpired()) {
                     log.debug("Using existing cached content cacheKey='{}' effectiveKey='{}': {}", cacheKey, effectiveKey, cachedContent);
                     return cachedContent;
@@ -69,6 +73,20 @@ public class GeminiCacheManager {
             }
             return createCachedContent(cacheKey, effectiveKey, ttl, content, tools, toolConfig, model);
         }).getId();
+    }
+
+    public void evict(String cacheKey, GeminiContent content, List<GeminiTool> tools, GeminiToolConfig toolConfig, String model) {
+        String effectiveKey = prepareEffectiveKey(cacheKey, content, tools, toolConfig, model);
+        CachedContentMetadata evicted = cachedContents.remove(effectiveKey);
+        if (evicted != null) {
+            log.debug("Evicted cached content cacheKey='{}' effectiveKey='{}': {}", cacheKey, effectiveKey, evicted);
+        }
+    }
+
+    static String prepareEffectiveKey(String cacheKey, GeminiContent content, List<GeminiTool> tools,
+                                      GeminiToolConfig toolConfig, String model) {
+        String prefix = cacheKey.length() > MAX_KEY_PREFIX_LENGTH ? cacheKey.substring(0, MAX_KEY_PREFIX_LENGTH) : cacheKey;
+        return prefix + ":" + getChecksum(cacheKey, content, tools, toolConfig, model);
     }
 
     private CachedContentMetadata extendTtl(CachedContentMetadata cachedContent, Duration ttl) {
@@ -98,11 +116,12 @@ public class GeminiCacheManager {
         return newCachedContent;
     }
 
-    private static String getChecksum(GeminiContent content, List<GeminiTool> tools, GeminiToolConfig toolConfig) {
+    private static String getChecksum(String cacheKey, GeminiContent content, List<GeminiTool> tools,
+                                      GeminiToolConfig toolConfig, String model) {
         var sb = new StringBuilder();
-        sb.append(content.parts().stream()
-                .map(GeminiContent.GeminiPart::text)
-                .collect(Collectors.joining(System.lineSeparator())));
+        sb.append(cacheKey);
+        sb.append(System.lineSeparator()).append(model);
+        sb.append(System.lineSeparator()).append(toCanonicalJson(content));
         if (tools != null) {
             List<GeminiTool> normalizedTools = tools.stream()
                     .map(GeminiCacheManager::normalize)
@@ -143,6 +162,7 @@ public class GeminiCacheManager {
         final String id;
         final String cacheKey;
         final String effectiveKey;
+        final String model;
         final Instant expirationTime;
 
         CachedContentMetadata(GeminiCachedContent cachedContent) {
@@ -150,7 +170,12 @@ public class GeminiCacheManager {
             this.effectiveKey = cachedContent.displayName();
             int sep = effectiveKey.lastIndexOf(':');
             this.cacheKey = sep >= 0 ? effectiveKey.substring(0, sep) : effectiveKey;
+            this.model = cachedContent.model();
             this.expirationTime = Instant.parse(cachedContent.expireTime());
+        }
+
+        boolean matchesModel(String modelName) {
+            return ("models/" + modelName).equals(model);
         }
 
         public String getId() {
@@ -179,6 +204,7 @@ public class GeminiCacheManager {
                     "id='" + id + '\'' +
                     ", cacheKey='" + cacheKey + '\'' +
                     ", effectiveKey='" + effectiveKey + '\'' +
+                    ", model='" + model + '\'' +
                     ", expirationTime=" + expirationTime +
                     '}';
         }
