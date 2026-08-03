@@ -32,8 +32,25 @@ public class GoogleAiGeminiStreamingChatModel extends BaseGeminiChatModel implem
     @Override
     public void doChat(ChatRequest request, StreamingChatResponseHandler handler) {
         GeminiGenerateContentRequest geminiRequest = createGenerateContentRequest(request);
-        geminiService.generateContentStream(
-                request.modelName(), geminiRequest, includeCodeExecutionOutput, returnThinking, handler);
+        if (!(geminiRequest.cachedContent() instanceof CachedContentSupplier cachedContentSupplier)) {
+            geminiService.generateContentStream(
+                    request.modelName(), geminiRequest, includeCodeExecutionOutput, returnThinking, handler);
+            return;
+        }
+        var retryingHandler = new CachedContentEvictingHandler(handler, cachedContentSupplier,
+                () -> geminiService.generateContentStream(
+                        request.modelName(), geminiRequest, includeCodeExecutionOutput, returnThinking, handler));
+        try {
+            geminiService.generateContentStream(
+                    request.modelName(), geminiRequest, includeCodeExecutionOutput, returnThinking, retryingHandler);
+        } catch (RuntimeException e) {
+            if (!isCachedContentFailure(e)) {
+                throw e;
+            }
+            cachedContentSupplier.evict();
+            geminiService.generateContentStream(
+                    request.modelName(), geminiRequest, includeCodeExecutionOutput, returnThinking, handler);
+        }
     }
 
     @Override
