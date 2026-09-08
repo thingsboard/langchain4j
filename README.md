@@ -27,6 +27,10 @@ Versions follow the `{upstream_version}-TB{N}` scheme, where `{upstream_version}
 - Send original content parts back to the model when continuing a conversation (`df6179c`).
 - Accumulate original content parts across streaming chunks instead of overwriting with last chunk's data (`f30e554`).
 
+### OpenAI enhancements
+- Reasoning text is read from the `reasoning` field as well as `reasoning_content` — newer vLLM releases, OpenRouter and other OpenAI-compatible endpoints use the former, DeepSeek and older vLLM the latter; without the alias `AiMessage.thinking()` stayed null on the former (`819c334`).
+- OpenAI models honour the timeouts configured on the `HttpClientBuilder` passed to them when the model's own `timeout` is not set, as the Gemini module already did; previously the module silently replaced them with 15 s connect / 60 s read (`a252bab01`).
+
 ### AiServices framework extensions
 - Custom metadata support for `AiServices` and `Result` (token counts, model info, etc.) (`aa3063d`).
 - Per-request `ResponseFormat` via `@Format` annotation — each AiService method can specify its own response format (`d6953f5`).

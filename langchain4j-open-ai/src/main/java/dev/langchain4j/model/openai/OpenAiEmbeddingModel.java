@@ -7,7 +7,6 @@ import static dev.langchain4j.model.openai.internal.OpenAiUtils.DEFAULT_OPENAI_U
 import static dev.langchain4j.model.openai.internal.OpenAiUtils.DEFAULT_USER_AGENT;
 import static dev.langchain4j.model.openai.internal.OpenAiUtils.tokenUsageFrom;
 import static dev.langchain4j.spi.ServiceHelper.loadFactories;
-import static java.time.Duration.ofSeconds;
 import static java.util.Collections.unmodifiableMap;
 
 import dev.langchain4j.data.embedding.Embedding;
@@ -51,8 +50,8 @@ public class OpenAiEmbeddingModel extends DimensionAwareEmbeddingModel {
                 .apiKey(builder.apiKey)
                 .organizationId(builder.organizationId)
                 .projectId(builder.projectId)
-                .connectTimeout(getOrDefault(builder.timeout, ofSeconds(15)))
-                .readTimeout(getOrDefault(builder.timeout, ofSeconds(60)))
+                .connectTimeout(builder.timeout)
+                .readTimeout(builder.timeout)
                 .logRequests(getOrDefault(builder.logRequests, false))
                 .logResponses(getOrDefault(builder.logResponses, false))
                 .logger(builder.logger)

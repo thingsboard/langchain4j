@@ -1,5 +1,6 @@
 package dev.langchain4j.model.openai.internal.chat;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -168,6 +169,9 @@ public final class AssistantMessage implements Message {
             return this;
         }
 
+        // newer vLLM releases, OpenRouter and other OpenAI-compatible endpoints send the reasoning text as "reasoning";
+        // DeepSeek and older vLLM as "reasoning_content" (the field name used when sending it back is configured separately)
+        @JsonAlias("reasoning")
         public Builder reasoningContent(String reasoningContent) {
             this.reasoningContent = reasoningContent;
             return this;
