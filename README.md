@@ -29,6 +29,7 @@ Versions follow the `{upstream_version}-TB{N}` scheme, where `{upstream_version}
 
 ### OpenAI enhancements
 - Reasoning text is read from the `reasoning` field as well as `reasoning_content` — newer vLLM releases, OpenRouter and other OpenAI-compatible endpoints use the former, DeepSeek and older vLLM the latter; without the alias `AiMessage.thinking()` stayed null on the former (`819c334`).
+- OpenAI models honour the timeouts configured on the `HttpClientBuilder` passed to them when the model's own `timeout` is not set, as the Gemini module already did; previously the module silently replaced them with 15 s connect / 60 s read (`a252bab01`).
 
 ### AiServices framework extensions
 - Custom metadata support for `AiServices` and `Result` (token counts, model info, etc.) (`aa3063d`).
