@@ -24,6 +24,52 @@ import org.junit.jupiter.api.Test;
 class PartsAndContentsMapperTest {
 
     @Test
+    void fromContentToGPart_referencesGeminiFileImageWithoutDownloading() {
+        // Given
+        String uri = "https://generativelanguage.googleapis.com/v1beta/files/abc123";
+        ImageContent content =
+                ImageContent.from(Image.builder().url(uri).mimeType("image/png").build());
+
+        // When
+        GeminiContent.GeminiPart part = PartsAndContentsMapper.fromContentToGPart(content);
+
+        // Then
+        assertThat(part.inlineData()).isNull();
+        assertThat(part.fileData().fileUri()).isEqualTo(uri);
+        assertThat(part.fileData().mimeType()).isEqualTo("image/png");
+    }
+
+    @Test
+    void fromContentToGPart_usesTheDocumentsOwnMimeType_whenReferencingAGeminiFile() {
+        // Given
+        String uri = "https://generativelanguage.googleapis.com/v1beta/files/text42";
+        PdfFileContent content = PdfFileContent.from(
+                PdfFile.builder().url(uri).mimeType("text/plain").build());
+
+        // When
+        GeminiContent.GeminiPart part = PartsAndContentsMapper.fromContentToGPart(content);
+
+        // Then
+        assertThat(part.fileData().fileUri()).isEqualTo(uri);
+        assertThat(part.fileData().mimeType()).isEqualTo("text/plain");
+    }
+
+    @Test
+    void isGeminiFileUri_matchesOnlyFilesApiUris() {
+        assertThat(PartsAndContentsMapper.isGeminiFileUri(
+                        java.net.URI.create("https://generativelanguage.googleapis.com/v1beta/files/abc123")))
+                .isTrue();
+        assertThat(PartsAndContentsMapper.isGeminiFileUri(
+                        java.net.URI.create("https://generativelanguage.googleapis.com/files/abc123")))
+                .isTrue();
+        assertThat(PartsAndContentsMapper.isGeminiFileUri(java.net.URI.create("https://example.com/files/abc123")))
+                .isFalse();
+        assertThat(PartsAndContentsMapper.isGeminiFileUri(
+                        java.net.URI.create("https://generativelanguage.googleapis.com/v1beta/models/gemini")))
+                .isFalse();
+    }
+
+    @Test
     void fromGPartsToAiMessage_handlesNullParts() {
 
         // Given
@@ -202,7 +248,8 @@ class PartsAndContentsMapperTest {
         AiMessage aiMessage = AiMessage.from(toolExecutionRequest);
 
         // When
-        List<GeminiContent> result = PartsAndContentsMapper.fromMessageToGContent(List.of(aiMessage), null, false, false);
+        List<GeminiContent> result =
+                PartsAndContentsMapper.fromMessageToGContent(List.of(aiMessage), null, false, false);
 
         // Then
         assertThat(result).hasSize(1);
@@ -221,7 +268,8 @@ class PartsAndContentsMapperTest {
         AiMessage aiMessage = AiMessage.from(toolExecutionRequest);
 
         // When
-        List<GeminiContent> result = PartsAndContentsMapper.fromMessageToGContent(List.of(aiMessage), null, false, false);
+        List<GeminiContent> result =
+                PartsAndContentsMapper.fromMessageToGContent(List.of(aiMessage), null, false, false);
 
         // Then
         assertThat(result).hasSize(1);

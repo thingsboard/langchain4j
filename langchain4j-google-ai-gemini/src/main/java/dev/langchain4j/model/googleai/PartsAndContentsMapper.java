@@ -84,7 +84,7 @@ final class PartsAndContentsMapper {
                             .inlineData(parseDataUri(url))
                             .mediaResolution(mediaResolution)
                             .build();
-                } else if (url.getScheme() != null && url.getScheme().startsWith("http")) {
+                } else if (url.getScheme() != null && url.getScheme().startsWith("http") && !isGeminiFileUri(url)) {
                     byte[] imageBytes = readBytes(url.toString());
                     String base64Data = Base64.getEncoder().encodeToString(imageBytes);
                     return GeminiContent.GeminiPart.builder()
@@ -153,7 +153,9 @@ final class PartsAndContentsMapper {
                             .build();
                 }
                 return GeminiContent.GeminiPart.builder()
-                        .fileData(new GeminiFileData(mimeTypeDetector.probeContentType(uri), uri.toString()))
+                        .fileData(new GeminiFileData(
+                                getOrDefault(pdfFile.mimeType(), mimeTypeDetector.probeContentType(uri)),
+                                uri.toString()))
                         .build();
             } else {
                 return GeminiContent.GeminiPart.builder()
@@ -163,6 +165,18 @@ final class PartsAndContentsMapper {
         } else {
             throw new UnsupportedFeatureException("Unsupported content type: " + content.type());
         }
+    }
+
+    /**
+     * Whether the URI points to a file uploaded with the Gemini Files API, such as
+     * {@code https://generativelanguage.googleapis.com/v1beta/files/abc123}. Such a file is referenced by its URI
+     * rather than downloaded, since only the API key that uploaded it can read it.
+     */
+    static boolean isGeminiFileUri(URI uri) {
+        return "https".equalsIgnoreCase(uri.getScheme())
+                && "generativelanguage.googleapis.com".equalsIgnoreCase(uri.getHost())
+                && uri.getPath() != null
+                && uri.getPath().matches("^(/v[^/]+)?/files/[^/]+$");
     }
 
     /**
@@ -290,9 +304,10 @@ final class PartsAndContentsMapper {
     }
 
     static List<GeminiContent> fromMessageToGContent(
-            List<ChatMessage> messages, GeminiContent systemInstruction,
-            boolean sendThinking, boolean sendOriginalContentParts
-    ) {
+            List<ChatMessage> messages,
+            GeminiContent systemInstruction,
+            boolean sendThinking,
+            boolean sendOriginalContentParts) {
         return fromMessageToGContent(messages, systemInstruction, sendThinking, false, sendOriginalContentParts);
     }
 
@@ -328,7 +343,8 @@ final class PartsAndContentsMapper {
                             AiMessage aiMessage = (AiMessage) msg;
 
                             if (sendOriginalContentParts) {
-                                List<GeminiContent.GeminiPart> originalParts = Json.convertValue(aiMessage.attributes().get(ORIGINAL_PARTS_KEY), new TypeReference<>() {});
+                                List<GeminiContent.GeminiPart> originalParts = Json.convertValue(
+                                        aiMessage.attributes().get(ORIGINAL_PARTS_KEY), new TypeReference<>() {});
                                 if (originalParts != null) {
                                     return new GeminiContent(originalParts, GeminiRole.MODEL.toString());
                                 }
